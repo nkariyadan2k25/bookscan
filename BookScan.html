@@ -6,3395 +6,338 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
 
-    <!-- Camera permissions for iframe (Google Sites) -->
+    <!-- Camera permissions -->
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(self)">
     <meta http-equiv="Feature-Policy" content="camera 'self'; microphone 'self'">
 
-    <title>Book Inventory - Find Your Next Book</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <title>Book Barcode Scanner</title>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* Cross-browser compatibility */
-        html {
-            -webkit-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
-            height: 100%;
-            overflow-x: hidden;
         }
 
         body {
-            font-family: 'Georgia', 'Garamond', serif;
-            background-color: #e8e4dc;
-            background-image:
-                repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px),
-                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
-            color: #3a3a3a;
-            min-height: 100%;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        .app-container {
-            display: flex;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            position: relative;
+            padding: 20px;
         }
 
-        /* Scrollbar styling for webkit browsers */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #c4a574;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #a0826d;
-        }
-
-        /* Sidebar Styles */
-        .sidebar {
-            width: 220px;
-            background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%);
-            padding: 20px 0;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-            box-shadow: 4px 0 20px rgba(0,0,0,0.5);
-            border-right: 2px solid #333;
-        }
-
-        .user-profile {
-            padding: 0 20px 20px;
-            border-bottom: 2px solid #444;
-            margin-bottom: 20px;
-        }
-
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #444 0%, #222 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            border: 2px solid #666;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-        }
-
-        .user-name {
-            font-weight: 600;
-            font-size: 16px;
-            margin-bottom: 8px;
-            color: #fff;
-        }
-
-        .logout-btn {
-            background: linear-gradient(135deg, #444 0%, #222 100%);
-            color: #fff;
-            border: 1px solid #666;
-            padding: 5px 15px;
-            border-radius: 15px;
-            font-size: 11px;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-weight: 600;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-            transition: all 0.3s;
-        }
-
-        .logout-btn:hover {
-            background: linear-gradient(135deg, #555 0%, #333 100%);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.2);
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 0;
-        }
-
-        .nav-item {
-            padding: 12px 20px;
-            margin: 8px 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 15px;
-            color: #fff;
-            background: linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 100%);
-            border-radius: 8px;
-            border: 1px solid #555;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 50%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
-            pointer-events: none;
-        }
-
-        .nav-item:hover {
-            background: linear-gradient(135deg, #4a4a4a 0%, #2a2a2a 100%);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
-            transform: translateY(-2px);
-        }
-
-        .nav-item.active {
-            background: linear-gradient(135deg, #c4a574 0%, #a0826d 100%);
-            color: #1a1a1a;
-            border: 1px solid #d4a574;
-            font-weight: 600;
-            box-shadow: 0 6px 15px rgba(196, 165, 116, 0.4), inset 0 1px 0 rgba(255,255,255,0.3);
-        }
-
-        .nav-item.active::before {
-            background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
-        }
-
-        .nav-item .icon {
-            font-size: 18px;
-        }
-
-        /* Highlight the Add Book icon */
-        .nav-item:nth-child(3) .icon {
-            font-size: 22px;
-            color: #ffffff !important;
-            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
-            animation: pulse-add-icon 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-add-icon {
-            0%, 100% {
-                transform: scale(1);
-                filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
-            }
-            50% {
-                transform: scale(1.15);
-                filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.8));
-            }
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: 220px;
-        }
-
-        /* Hero Section with Library Background */
-        .hero-section {
-            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://image2url.com/r2/bucket1/images/1767630546492-b4d6a367-6478-41be-8edb-0f1d9795de1c.png');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            padding: 60px 40px;
-            color: #f5f1e8;
-            position: relative;
-            border-bottom: 4px solid #c4a574;
-            box-shadow: inset 0 0 60px rgba(0,0,0,0.3);
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-        }
-
-        .notification-icon {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            width: 40px;
-            height: 40px;
-            background-color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 20px;
-        }
-
-        .bell-icon {
-            position: absolute;
-            top: 70px;
-            right: 30px;
-            width: 40px;
-            height: 40px;
-            background-color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-
-        .hero-content {
-            max-width: 600px;
+        .container {
+            max-width: 900px;
             margin: 0 auto;
-            text-align: center;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
         }
 
-        .hero-content .brand-title {
-            font-size: 72px;
+        h1 {
+            color: #2e8b57;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .info-box {
+            background-color: #e7f3ff;
+            padding: 18px;
+            border-left: 5px solid #2196F3;
             margin-bottom: 20px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            border-radius: 6px;
         }
 
-        .hero-content .brand-title .x-logo {
-            font-size: 84px;
-            font-weight: 900;
-            color: #ed9f6e;
-            background: linear-gradient(135deg, #ed9f6e 0%, #ffa500 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 0 40px rgba(237, 159, 110, 0.6);
-            font-style: italic;
-            transform: rotate(-5deg);
-            display: inline-block;
-        }
-
-        .hero-content h1 {
-            font-size: 42px;
-            margin-bottom: 30px;
-            font-weight: 300;
-            letter-spacing: 1px;
-        }
-
-        .search-bar {
-            position: relative;
-        }
-
-        .search-bar input {
-            width: 100%;
-            padding: 18px 25px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .search-bar input:focus {
-            outline: none;
-            box-shadow: 0 4px 20px rgba(237, 159, 110, 0.5);
-        }
-
-        /* Content Section */
-        .content-section {
-            padding: 40px;
-        }
-
-        /* Section Header */
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .section-header h2 {
-            font-size: 28px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .navigation-arrows {
-            display: flex;
-            gap: 10px;
-        }
-
-        .arrow-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #ed9f6e;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        .arrow-btn:hover {
-            background-color: #d97d42;
-            transform: scale(1.1);
-        }
-
-        /* Books Grid */
-        .books-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 25px;
-            margin-bottom: 50px;
-        }
-
-        .book-card {
-            cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            position: relative;
-        }
-
-        .book-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-        }
-
-        .book-card:active {
-            transform: translateY(-3px);
-        }
-
-        .book-cover {
-            width: 100%;
-            height: 240px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            margin-bottom: 12px;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: white;
-            font-weight: 600;
-            text-align: center;
-            padding: 15px;
-        }
-
-        .favorite-icon {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 32px;
-            height: 32px;
-            background-color: rgba(255,255,255,0.9);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .book-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #333;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .book-author {
-            font-size: 12px;
-            color: #ed9f6e;
-            margin-bottom: 5px;
-        }
-
-        .book-rating {
-            color: #ffa500;
-            font-size: 12px;
-        }
-
-        /* Inventory Table View */
-        .inventory-view {
-            background-color: #f5f1e8;
-            border-radius: 10px;
+        .warning-box {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
             padding: 25px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            border: 2px solid #c4a574;
-        }
-
-        .stats-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            padding: 30px;
-            background: linear-gradient(135deg, #d4c4a0 0%, #c4a574 100%);
-            border-radius: 10px;
-            margin-bottom: 30px;
-            border: 2px solid #a0826d;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 16px;
-            color: #5d4e37;
-            font-weight: 600;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .stat-value {
-            font-size: 32px;
-            font-weight: bold;
-            color: #3a2f1f;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.3);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: #faf8f3;
-            table-layout: auto;
-        }
-
-        /* Table wrapper for horizontal scroll on mobile */
-        .inventory-view {
-            position: relative;
-        }
-
-        thead {
-            background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%);
-            color: #f5f1e8;
-        }
-
-        th {
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 2px solid #c4a574;
-        }
-
-        td {
-            padding: 15px;
-            border-bottom: 1px solid #d4c4a0;
-            font-size: 14px;
-            color: #3a3a3a;
-        }
-
-        tbody tr:hover {
-            background-color: #f0e8d8;
-        }
-
-        tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-            font-style: italic;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.6);
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-content {
-            background-color: #f5f1e8;
-            margin: 50px auto;
-            padding: 0;
-            width: 90%;
-            max-width: 800px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-            animation: slideIn 0.3s;
-            max-height: 90vh;
-            overflow-y: auto;
-            border: 3px solid #c4a574;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(-50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%);
-            color: #f5f1e8;
-            padding: 25px 30px;
-            border-radius: 15px 15px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 3px solid #c4a574;
-        }
-
-        .modal-header h2 {
-            font-size: 24px;
-            font-weight: 600;
-        }
-
-        .close {
-            color: white;
-            font-size: 32px;
-            font-weight: bold;
-            cursor: pointer;
-            line-height: 1;
-            transition: transform 0.2s;
-        }
-
-        .close:hover {
-            transform: rotate(90deg);
-        }
-
-        .modal-body {
-            padding: 30px;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
             margin-bottom: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(238, 90, 111, 0.3);
+            border: 3px solid #ff5252;
+            display: none;
         }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
+        .warning-box h2 {
+            color: white;
+            margin-top: 0;
+            font-size: 24px;
+            text-align: center;
         }
 
-        .form-group label {
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .form-group input:not([type="checkbox"]),
-        .form-group select {
-            padding: 12px 15px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s;
-            width: 100%;
-            max-width: 100%;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-
-        .form-group input[type="checkbox"] {
-            -webkit-appearance: auto;
-            appearance: auto;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #ed9f6e;
-            box-shadow: 0 0 0 3px rgba(237, 159, 110, 0.1);
-        }
-
-        .form-group select {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 15px center;
-            padding-right: 40px;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 25px;
+        .warning-box p {
+            color: white;
+            margin: 15px 0;
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.6;
         }
 
         .btn {
-            padding: 12px 30px;
+            padding: 15px 40px;
             border: none;
             border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
-            font-size: 15px;
-            font-weight: 600;
             transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn.loading {
-            pointer-events: none;
-            opacity: 0.8;
-        }
-
-        .btn-primary.loading::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            margin: -10px 0 0 -10px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
-        }
-
-        .btn.loading .btn-text {
-            opacity: 0;
-        }
-
-        .btn.loading .loading-text {
-            opacity: 1;
-            font-size: 12px;
-            color: #f5f1e8;
-            z-index: 10;
-        }
-
-        .loading-text {
-            opacity: 0;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 12px;
-            transition: opacity 0.3s;
-            z-index: 10;
-        }
-
-        .loading-dots::after {
-            content: '';
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-
-        @keyframes dots {
-            0%, 20% {
-                content: '';
-            }
-            40% {
-                content: '.';
-            }
-            60% {
-                content: '..';
-            }
-            80%, 100% {
-                content: '...';
-            }
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .btn-ripple {
-            position: absolute;
-            border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.6);
-            transform: scale(0);
-            animation: ripple 0.6s ease-out;
-            pointer-events: none;
-        }
-
-        @keyframes ripple {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%);
-            color: #f5f1e8;
-            border: 2px solid #a0826d;
+            background: linear-gradient(135deg, #2e8b57 0%, #3cb371 100%);
+            color: white;
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, #6d5a44 0%, #5d4e37 100%);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(93, 78, 55, 0.4);
+            box-shadow: 0 6px 15px rgba(46, 139, 87, 0.4);
         }
 
         .btn-secondary {
-            background-color: #a0826d;
-            color: #f5f1e8;
-            border: 2px solid #8b7355;
+            background: #6c757d;
+            color: white;
         }
 
-        .btn-secondary:hover {
-            background-color: #8b7355;
+        .btn-warning {
+            background: white;
+            color: #ff5252;
+            padding: 20px 50px;
+            font-size: 20px;
         }
 
-        .btn-delete {
-            background-color: #a04040;
-            color: #f5f1e8;
-            padding: 6px 12px;
-            font-size: 12px;
-            border: 2px solid #8b3535;
+        .btn-warning:hover {
+            transform: scale(1.05);
         }
 
-        .btn-delete:hover {
-            background-color: #8b3535;
-        }
-
-        .refresh-btn {
-            background: linear-gradient(135deg, #2e8b57 0%, #228b54 100%);
-            color: #f5f1e8;
-            border: 2px solid #1e6b3f;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 24px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            box-shadow: 0 4px 8px rgba(46, 139, 87, 0.3), inset 0 1px 0 rgba(255,255,255,0.3);
-            position: relative;
+        #cameraViewContainer {
+            border-radius: 10px;
             overflow: hidden;
+            margin-bottom: 20px;
+            display: none;
         }
 
-        .refresh-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 50%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
-            pointer-events: none;
-            border-radius: 50%;
+        #reader {
+            width: 100%;
+            border: 2px solid #2e8b57;
+            border-radius: 10px;
         }
 
-        .refresh-btn:hover {
-            background: linear-gradient(135deg, #3a9d6a 0%, #2e8b57 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(46, 139, 87, 0.5), inset 0 1px 0 rgba(255,255,255,0.4);
+        #scanStatus {
+            margin-top: 10px;
+            background: #e7f3ff;
+            color: #2196F3;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 14px;
+            border-left: 4px solid #2196F3;
         }
 
-        .refresh-btn:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
         }
 
-        .refresh-btn.refreshing {
-            pointer-events: none;
-            opacity: 0.8;
+        #scannedBookDetails {
+            display: none;
+            background-color: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #2e8b57;
+            margin-bottom: 20px;
         }
 
-        .refresh-btn.refreshing .refresh-icon {
-            animation: rotate 1s linear infinite;
+        #scannedBookDetails h3 {
+            color: #2e8b57;
+            margin-bottom: 20px;
         }
 
-        @keyframes rotate {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
+        .detail-item {
+            margin-bottom: 15px;
         }
 
-        /* Glossy Brown Filter Styles */
-        .glossy-filter {
-            background: linear-gradient(135deg, #c4a574 0%, #a0826d 100%) !important;
-            border: 2px solid #8b7355 !important;
-            color: #2a2219 !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3) !important;
-            position: relative;
-            overflow: hidden;
+        .detail-item strong {
+            color: #5d4e37;
+            display: block;
+            margin-bottom: 5px;
         }
 
-        .glossy-filter::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 50%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 100%);
-            pointer-events: none;
+        .detail-item p {
+            margin: 0;
+            font-size: 16px;
         }
 
-        .glossy-filter:hover {
-            background: linear-gradient(135deg, #d4b584 0%, #b0927d 100%) !important;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4) !important;
-            transform: translateY(-1px);
+        #historyList {
+            display: grid;
+            gap: 10px;
         }
 
-        .glossy-filter:focus {
-            outline: none;
-            border-color: #6d5a44 !important;
-            box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.2), 0 6px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+        .history-item {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2e8b57;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .glossy-filter option {
-            background-color: #faf8f3;
-            color: #3a3a3a;
-            font-weight: normal;
-        }
-
-        /* Alert */
         .alert {
             position: fixed;
             top: 20px;
             right: 20px;
             padding: 15px 25px;
             border-radius: 8px;
-            display: none;
-            z-index: 2000;
-            animation: slideInRight 0.3s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10000;
             max-width: 400px;
-        }
-
-        @keyframes slideInRight {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .alert.success {
-            background-color: #d4edda;
-            color: #155724;
-            border-left: 4px solid #28a745;
-        }
-
-        .alert.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border-left: 4px solid #dc3545;
-        }
-
-        .alert .close-btn {
-            margin-left: 15px;
-            cursor: pointer;
-            font-weight: bold;
-            float: right;
-        }
-
-        /* Loading Spinner */
-        .loading {
             display: none;
-            text-align: center;
-            padding: 60px;
-            color: #2e8b57;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #2e8b57;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid #28a745;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 5px solid #dc3545;
         }
 
-        /* Setup Section */
-        .setup-panel {
-            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
-            border-radius: 15px;
-            padding: 35px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        }
-
-        .setup-panel h2 {
-            color: #2e8b57;
-            margin-bottom: 20px;
-            font-size: 28px;
-        }
-
-        .setup-panel h3 {
-            color: #2e8b57;
-            margin: 25px 0 15px;
-            font-size: 18px;
-        }
-
-        .setup-panel p, .setup-panel ol {
-            color: #555;
-            line-height: 1.8;
-            margin-bottom: 15px;
-        }
-
-        .setup-panel ol {
-            margin-left: 25px;
-        }
-
-        .setup-panel code {
-            background-color: #f4f4f4;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-
-        .highlight-box {
-            background-color: #fff3cd;
-            padding: 18px;
-            border-left: 5px solid #ffc107;
-            margin: 20px 0;
-            border-radius: 6px;
-        }
-
-        .status-box {
-            background-color: #e7f3ff;
-            padding: 18px;
-            border-left: 5px solid #2196F3;
-            margin: 20px 0;
-            border-radius: 6px;
-        }
-
-        .config-input {
-            width: 100%;
-            max-width: 700px;
-            padding: 12px 15px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            margin-bottom: 15px;
-        }
-
-        .code-textarea {
-            width: 100%;
-            height: 300px;
-            font-family: 'Courier New', monospace;
-            padding: 15px;
-            background: #282c34;
-            color: #abb2bf;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        /* Category Checkbox Styles */
-        .category-checkbox {
-            display: inline-flex;
-            align-items: center;
-            cursor: pointer;
-            padding: 8px 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 6px;
-            background-color: white;
-            transition: all 0.3s;
-            user-select: none;
-        }
-
-        .category-checkbox:hover {
-            border-color: #2e8b57;
-            background-color: #f0f9f4;
-        }
-
-        .category-checkbox input[type="checkbox"] {
-            margin-right: 6px;
-            cursor: pointer;
-            width: 16px;
-            height: 16px;
-            accent-color: #2e8b57;
-            -webkit-appearance: auto;
-            appearance: auto;
-        }
-
-        .category-checkbox input[type="checkbox"]:checked {
-            background-color: #2e8b57;
-            border-color: #2e8b57;
-        }
-
-        .category-checkbox input[type="checkbox"]:checked + .checkbox-label {
-            font-weight: 600;
-            color: #2e8b57;
-        }
-
-        .checkbox-label {
-            font-size: 14px;
-            color: #333;
-        }
-
-        /* Selected Category Tags */
-        .category-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            background-color: #2e8b57;
-            color: white;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .category-tag .remove-tag {
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-            line-height: 1;
-            padding: 0 4px;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-        }
-
-        .category-tag .remove-tag:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Responsive Styles */
-
-        /* Tablet Devices (768px - 1024px) */
-        @media (max-width: 1024px) and (min-width: 769px) {
-            .sidebar {
-                width: 200px;
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
             }
 
-            .main-content {
-                margin-left: 200px;
-            }
-
-            /* Inventory Filters - 2 columns on tablet */
-            .inventory-filters-row {
-                grid-template-columns: repeat(2, 1fr) !important;
-            }
-
-            .inventory-filters-row div:last-child {
-                grid-column: 1 / -1;
-            }
-
-            .hero-content .brand-title {
-                font-size: 60px;
-            }
-
-            .hero-content h1 {
-                font-size: 32px;
-            }
-
-            .books-grid {
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-                gap: 20px;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-
-            table {
-                font-size: 13px;
-            }
-
-            th, td {
-                padding: 12px 10px;
-            }
-        }
-
-        /* Mobile Devices (up to 768px) */
-        @media (max-width: 768px) {
-            body {
-                font-size: 14px;
-            }
-
-            /* Inventory Filters - Stack vertically on mobile */
-            .inventory-filters-row {
-                grid-template-columns: 1fr !important;
-                gap: 12px !important;
-            }
-
-            .inventory-filters-row select {
-                font-size: 14px !important;
-                padding: 10px 12px !important;
-            }
-
-            .inventory-filters-row label {
-                font-size: 13px !important;
-                margin-bottom: 6px !important;
-            }
-
-            .app-container {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                border-right: none;
-                border-bottom: 3px solid #333;
-                padding: 15px 0;
-            }
-
-            .user-profile {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                padding: 0 15px 15px;
-            }
-
-            .user-avatar {
-                width: 40px;
-                height: 40px;
-                font-size: 18px;
-                margin-bottom: 0;
-            }
-
-            .user-name {
-                font-size: 14px;
-            }
-
-            .logout-btn {
-                margin-left: auto;
-            }
-
-            .nav-menu {
-                display: flex;
-                overflow-x: auto;
-                white-space: nowrap;
-                padding: 0 10px;
-                -webkit-overflow-scrolling: touch;
-            }
-
-            .nav-item {
-                padding: 10px 15px;
-                margin: 0 5px;
-                flex-shrink: 0;
-            }
-
-            .nav-item.active {
-                /* Glossy button style maintained from main CSS */
-            }
-
-            .main-content {
-                margin-left: 0;
-                width: 100%;
-            }
-
-            .hero-section {
-                padding: 40px 20px;
-            }
-
-            .notification-icon {
-                width: 35px;
-                height: 35px;
-                font-size: 18px;
-                top: 15px;
-                right: 15px;
-            }
-
-            .bell-icon {
-                width: 35px;
-                height: 35px;
-                font-size: 18px;
-                top: 55px;
-                right: 15px;
-            }
-
-            .hero-content .brand-title {
-                font-size: 42px;
-            }
-
-            .hero-content h1 {
-                font-size: 22px;
-            }
-
-            .content-section {
-                padding: 20px 15px;
-            }
-
-            .stats-bar {
-                grid-template-columns: 1fr 1fr;
-                gap: 15px;
-                padding: 20px 15px;
-            }
-
-            .stat-label {
-                font-size: 14px;
-            }
-
-            .stat-value {
+            h1 {
                 font-size: 24px;
             }
 
-            .section-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 15px;
-            }
-
-            .section-header h2 {
-                font-size: 22px;
-            }
-
-            .books-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                gap: 15px;
-            }
-
-            .book-cover {
-                height: 160px;
-                font-size: 12px;
-            }
-
-            .book-title {
-                font-size: 13px;
-            }
-
-            .book-author {
-                font-size: 11px;
-            }
-
-            .inventory-view {
-                padding: 15px;
-                overflow-x: auto;
-            }
-
-            table {
-                min-width: 600px;
-                font-size: 12px;
-            }
-
-            th, td {
-                padding: 10px 8px;
-                font-size: 12px;
-            }
-
-            .modal-content {
-                width: 95%;
-                margin: 20px auto;
-            }
-
-            .modal-header {
-                padding: 20px 15px;
-            }
-
-            .modal-header h2 {
-                font-size: 20px;
-            }
-
-            .modal-body {
-                padding: 20px 15px;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-
-            .form-group input,
-            .form-group select {
-                padding: 10px 12px;
-                font-size: 14px;
-            }
-
             .btn {
-                padding: 10px 20px;
+                padding: 12px 30px;
                 font-size: 14px;
-            }
-
-            .arrow-btn {
-                width: 35px;
-                height: 35px;
-                font-size: 16px;
-            }
-        }
-
-        /* Small Mobile Devices (up to 480px) */
-        @media (max-width: 480px) {
-            .hero-content .brand-title {
-                font-size: 32px;
-            }
-
-            .hero-content h1 {
-                font-size: 18px;
-            }
-
-            .stats-bar {
-                grid-template-columns: 1fr;
-            }
-
-            .books-grid {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-                gap: 10px;
-            }
-
-            .book-cover {
-                height: 140px;
-            }
-
-            .section-header h2 {
-                font-size: 20px;
-            }
-
-            .form-actions {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .btn {
-                width: 100%;
-            }
-        }
-
-        /* Landscape Orientation for Mobile/Tablet */
-        @media (max-height: 600px) and (orientation: landscape) {
-            .sidebar {
-                padding: 10px 0;
-            }
-
-            .user-profile {
-                padding: 0 10px 10px;
-            }
-
-            .hero-section {
-                padding: 30px 20px;
-            }
-
-            .hero-content .brand-title {
-                font-size: 36px;
-            }
-
-            .hero-content h1 {
-                font-size: 20px;
-            }
-
-            .content-section {
-                padding: 20px 15px;
-            }
-
-            .modal-content {
-                max-height: 85vh;
-            }
-
-            .stats-bar {
-                padding: 15px;
-                gap: 15px;
-            }
-
-            .stat-value {
-                font-size: 24px;
-            }
-        }
-
-        /* iPad and Tablet Portrait */
-        @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
-            .sidebar {
-                width: 180px;
-            }
-
-            .main-content {
-                margin-left: 180px;
-            }
-
-            .hero-content .brand-title {
-                font-size: 56px;
-            }
-
-            .books-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            }
-        }
-
-        /* iPad and Tablet Landscape */
-        @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
-            .sidebar {
-                width: 200px;
-            }
-
-            .main-content {
-                margin-left: 200px;
-            }
-
-            .hero-section {
-                padding: 50px 30px;
-            }
-
-            .books-grid {
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            }
-        }
-
-        /* Large Desktop Devices (1440px+) */
-        @media (min-width: 1440px) {
-            .sidebar {
-                width: 250px;
-            }
-
-            .main-content {
-                margin-left: 250px;
-            }
-
-            .content-section {
-                max-width: 1400px;
-                margin: 0 auto;
-                padding: 40px 60px;
-            }
-
-            .hero-content .brand-title {
-                font-size: 84px;
-            }
-
-            .hero-content h1 {
-                font-size: 48px;
-            }
-        }
-
-        /* Print Styles */
-        @media print {
-            .sidebar,
-            .notification-icon,
-            .bell-icon,
-            .btn,
-            .arrow-btn,
-            .navigation-arrows {
-                display: none;
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            body {
-                background: white;
             }
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="user-profile">
-                <div class="user-avatar">📚</div>
-                <div class="user-name">Book Manager</div>
+    <div class="container">
+        <h1>📷 Book Barcode Scanner</h1>
+        <p class="subtitle">Scan ISBN barcodes to automatically retrieve book information</p>
+
+        <!-- Info Box -->
+        <div class="info-box">
+            <strong>📖 How to use:</strong> Click "Start Scanner" below to activate your camera. Point it at a book's ISBN barcode. Once scanned, book details will be fetched automatically from Google Books.
+        </div>
+
+        <!-- Iframe Warning -->
+        <div id="iframeWarning" class="warning-box">
+            <h2>⚠️ Camera Access Blocked</h2>
+            <p>
+                This page is embedded and camera access is blocked.<br>
+                <strong>Click the button below to use the scanner:</strong>
+            </p>
+            <div style="text-align: center; margin: 20px 0;">
+                <button onclick="openInNewTab()" class="btn btn-warning">
+                    📷 Open Scanner (Click Here!)
+                </button>
             </div>
-            <nav>
-                <ul class="nav-menu">
-                    <li class="nav-item active" onclick="showView('home')">
-                        <span class="icon">🏠</span>
-                        <span>Home</span>
-                    </li>
-                    <li class="nav-item" onclick="showView('inventory')">
-                        <span class="icon">📋</span>
-                        <span>Inventory</span>
-                    </li>
-                    <li class="nav-item" onclick="openAddBookModal()">
-                        <span class="icon">➕</span>
-                        <span>Add Book</span>
-                    </li>
-                    <li class="nav-item" onclick="toggleDeleteMode()">
-                        <span class="icon">🗑️</span>
-                        <span>Delete Book</span>
-                    </li>
-                    <li class="nav-item" onclick="showView('scanner')">
-                        <span class="icon">📷</span>
-                        <span>Scanner</span>
-                    </li>
-                    <li class="nav-item" onclick="openHowToUseModal()">
-                        <span class="icon">❓</span>
-                        <span>How to Use</span>
-                    </li>
-                    <li class="nav-item" onclick="showView('statistics')">
-                        <span class="icon">📊</span>
-                        <span>Statistics</span>
-                    </li>
-                    <li class="nav-item" onclick="openContactModal()">
-                        <span class="icon">📞</span>
-                        <span>Contact Us</span>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
+            <p style="font-size: 14px; opacity: 0.9;">
+                This will open the scanner in a new tab where your camera will work.
+            </p>
+        </div>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Alert Message -->
-            <div id="alertMessage" class="alert"></div>
+        <!-- Camera View -->
+        <div id="cameraViewContainer">
+            <div id="reader"></div>
+            <div id="scanStatus">Ready to scan</div>
+        </div>
 
-            <!-- Hero Section -->
-            <section class="hero-section">
-                <div class="bell-icon">🔔</div>
-                <div class="hero-content">
-                    <div class="brand-title">
-                        <span>Books</span>
-                        <span class="x-logo">X</span>
-                        <span>Change</span>
-                    </div>
-                    <h1>Find your next book to read.</h1>
-                </div>
-            </section>
+        <!-- Scanner Controls -->
+        <div class="controls">
+            <button id="startScanBtn" class="btn btn-primary" onclick="startScanner()">
+                📷 Start Scanner
+            </button>
+            <button id="stopScanBtn" class="btn btn-secondary" onclick="stopScanner()" style="display: none;">
+                ⏹️ Stop Scanner
+            </button>
+        </div>
 
-            <!-- Home View -->
-            <div id="homeView" class="content-section">
-                <!-- Search Box for Home View -->
-                <div style="margin-bottom: 30px; max-width: 800px; margin-left: auto; margin-right: auto;">
-                    <input type="text"
-                           id="homeSearchInput"
-                           placeholder="🔍 Search by book title, author, unit number, or contact number..."
-                           style="width: 100%; padding: 18px 25px; font-size: 16px; border: 2px solid #e9ecef; border-radius: 8px; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"
-                           oninput="filterBooksFromHome()"
-                           onfocus="this.style.borderColor='#2e8b57'; this.style.boxShadow='0 0 0 3px rgba(46, 139, 87, 0.1)'"
-                           onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'">
-                    <div id="homeSearchResultCount" style="margin-top: 10px; color: #666; font-size: 14px; text-align: center;"></div>
-                </div>
-
-                <!-- Statistics -->
-                <div class="stats-bar">
-                    <div class="stat-item">
-                        <div class="stat-label">Total Books</div>
-                        <div class="stat-value" id="totalBooks">0</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Total Authors</div>
-                        <div class="stat-value" id="totalAuthors">0</div>
-                    </div>
-                </div>
-
-                <!-- Latest Books -->
-                <div class="section-header">
-                    <h2>Latest Books Added</h2>
-                    <div class="navigation-arrows">
-                        <button class="arrow-btn" onclick="scrollBooks('popular', -1)">←</button>
-                        <button class="arrow-btn" onclick="scrollBooks('popular', 1)">→</button>
-                    </div>
-                </div>
-                <div id="popularBooks" class="books-grid"></div>
-
+        <!-- Scanned Book Details -->
+        <div id="scannedBookDetails">
+            <h3>📚 Scanned Book Details</h3>
+            <div class="detail-item">
+                <strong>ISBN:</strong>
+                <p id="scannedISBN"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Book Title:</strong>
+                <p id="scannedBookTitle" style="font-weight: 600;"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Author(s):</strong>
+                <p id="scannedAuthor"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Publisher:</strong>
+                <p id="scannedPublisher"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Published Date:</strong>
+                <p id="scannedPublishedDate"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Categories:</strong>
+                <p id="scannedCategories"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Description:</strong>
+                <p id="scannedDescription" style="font-size: 14px; line-height: 1.6; color: #666;"></p>
             </div>
 
-            <!-- Inventory View -->
-            <div id="inventoryView" class="content-section" style="display:none;">
-                <div class="inventory-view">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h2 style="margin: 0; color: #2e8b57;">Book Inventory</h2>
-                        <button onclick="refreshInventory()" class="refresh-btn" title="Refresh to get latest data from Google Sheet">
-                            <span class="refresh-icon">🔄</span>
-                        </button>
-                    </div>
-
-                    <!-- Filters Container (Full Width Above) -->
-                    <div class="inventory-filters-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #5d4e37; font-size: 14px;">Genre</label>
-                            <select id="genreFilter" onchange="filterInventory()" class="glossy-filter" style="width: 100%; padding: 12px 15px; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
-                                <option value="">All Genres</option>
-                                <option value="Historical Fiction">Historical Fiction</option>
-                                <option value="Horror">Horror</option>
-                                <option value="Fantasy">Fantasy</option>
-                                <option value="Mystery">Mystery</option>
-                                <option value="Romance">Romance</option>
-                                <option value="Sci-fi">Sci-fi</option>
-                                <option value="Biography">Biography</option>
-                                <option value="Graphic">Graphic</option>
-                                <option value="Memoir">Memoir</option>
-                                <option value="Thriller">Thriller</option>
-                                <option value="Literary">Literary</option>
-                                <option value="Adventure">Adventure</option>
-                                <option value="Short-Story">Short-Story</option>
-                                <option value="Dystopian">Dystopian</option>
-                                <option value="Contemporary">Contemporary</option>
-                                <option value="FairyTale">FairyTale</option>
-                                <option value="Poetry">Poetry</option>
-                                <option value="Classics">Classics</option>
-                                <option value="Humour">Humour</option>
-                                <option value="Teen-Aged">Teen-Aged</option>
-                                <option value="Philosophical">Philosophical</option>
-                                <option value="Children's Specific">Children's Specific</option>
-                                <option value="Magical">Magical</option>
-                                <option value="Motivational">Motivational</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #5d4e37; font-size: 14px;">Category</label>
-                            <select id="categoryFilter" onchange="filterInventory()" class="glossy-filter" style="width: 100%; padding: 12px 15px; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
-                                <option value="">All Categories</option>
-                                <option value="0 to 3 yrs">0 to 3 yrs</option>
-                                <option value="3 to 7 yrs">3 to 7 yrs</option>
-                                <option value="7 to 12 yrs">7 to 12 yrs</option>
-                                <option value="12 to 18 yrs">12 to 18 yrs</option>
-                                <option value="18 +">18 +</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #5d4e37; font-size: 14px;">Language</label>
-                            <select id="languageFilter" onchange="filterInventory()" class="glossy-filter" style="width: 100%; padding: 12px 15px; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
-                                <option value="">All Languages</option>
-                                <option value="English">English</option>
-                                <option value="Hindi">Hindi</option>
-                                <option value="Bengali">Bengali</option>
-                                <option value="Tamil">Tamil</option>
-                                <option value="Telugu">Telugu</option>
-                                <option value="Marathi">Marathi</option>
-                                <option value="Urdu">Urdu</option>
-                                <option value="Gujarati">Gujarati</option>
-                                <option value="Kannada">Kannada</option>
-                                <option value="Malayalam">Malayalam</option>
-                                <option value="Spanish">Spanish</option>
-                                <option value="French">French</option>
-                                <option value="Arabic">Arabic</option>
-                                <option value="Chinese">Chinese</option>
-                                <option value="Japanese">Japanese</option>
-                                <option value="German">German</option>
-                                <option value="Russian">Russian</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Search Box (Full Width Below) -->
-                    <div style="margin-bottom: 20px;">
-                        <input type="text"
-                               id="inventorySearchInput"
-                               placeholder="🔍 Search by book title, author, unit number, or contact number..."
-                               style="width: 100%; padding: 15px 20px; font-size: 16px; border: 2px solid #e9ecef; border-radius: 8px; transition: all 0.3s;"
-                               oninput="filterInventory()"
-                               onfocus="this.style.borderColor='#2e8b57'; this.style.boxShadow='0 0 0 3px rgba(46, 139, 87, 0.1)'"
-                               onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none'">
-                        <div id="searchResultCount" style="margin-top: 10px; color: #666; font-size: 14px;"></div>
-                    </div>
-
-                    <div id="loadingSpinner" class="loading">
-                        <div class="spinner"></div>
-                        <p>Loading books...</p>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Book Title</th>
-                                <th>Author</th>
-                                <th>Unit No</th>
-                                <th>Contact Number</th>
-                                <th id="actionColumn" style="display:none;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventoryTableBody">
-                            <tr>
-                                <td colspan="4" class="no-data">No books available. Add books to get started.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div style="margin-top: 25px; text-align: center;">
+                <button id="saveToISBNListBtn" class="btn btn-primary" onclick="saveToISBNList()">
+                    💾 Save to ISBN List
+                </button>
+                <button class="btn btn-secondary" onclick="clearScannedBook()">
+                    🔄 Scan Another
+                </button>
             </div>
+        </div>
 
-            <!-- Statistics View -->
-            <div id="statisticsView" class="content-section" style="display:none;">
-                <div class="inventory-view">
-                    <h2 style="margin-bottom: 25px; color: #2e8b57;">Book Statistics</h2>
-
-                    <!-- View Type Selector -->
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <div style="display: inline-flex; background-color: #f5f1e8; border-radius: 10px; padding: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border: 2px solid #c4a574;">
-                            <button id="genreStatsBtn" onclick="switchStatView('genre')" style="padding: 12px 30px; border: none; border-radius: 8px; background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%); color: #f5f1e8; font-weight: 600; cursor: pointer; font-size: 15px; transition: all 0.3s; margin-right: 5px;">
-                                Genre
-                            </button>
-                            <button id="categoryStatsBtn" onclick="switchStatView('category')" style="padding: 12px 30px; border: none; border-radius: 8px; background-color: transparent; color: #5d4e37; font-weight: 600; cursor: pointer; font-size: 15px; transition: all 0.3s; margin-right: 5px;">
-                                Category
-                            </button>
-                            <button id="languageStatsBtn" onclick="switchStatView('language')" style="padding: 12px 30px; border: none; border-radius: 8px; background-color: transparent; color: #5d4e37; font-weight: 600; cursor: pointer; font-size: 15px; transition: all 0.3s;">
-                                Language
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style="background-color: #f5f1e8; border-radius: 10px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 2px solid #c4a574;">
-                        <h3 id="statsTitle" style="text-align: center; color: #5d4e37; margin-bottom: 30px; font-size: 22px;">Genre Distribution</h3>
-
-                        <div style="max-width: 600px; margin: 0 auto;">
-                            <canvas id="statsChart"></canvas>
-                        </div>
-
-                        <div id="statsBreakdown" style="margin-top: 40px;">
-                            <h4 id="breakdownTitle" style="color: #5d4e37; margin-bottom: 20px; text-align: center; font-size: 18px;">Genre Breakdown</h4>
-                            <div id="statsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scanner View -->
-            <div id="scannerView" class="content-section" style="display:none;">
-                <div class="inventory-view">
-                    <h2 style="margin-bottom: 25px; color: #2e8b57;">📷 Barcode Scanner</h2>
-
-                    <!-- Scanner Instructions -->
-                    <div style="background-color: #e7f3ff; padding: 18px; border-left: 5px solid #2196F3; margin-bottom: 20px; border-radius: 6px;">
-                        <strong>📖 How to use:</strong> Click "Start Scanner" below to activate your camera. Point it at a book's ISBN barcode. Once scanned, book details will be fetched automatically from Google Books.
-                    </div>
-
-                    <!-- Iframe Warning - Shows for Google Sites embedding -->
-                    <div id="iframeWarning" style="display: none; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(238, 90, 111, 0.3); border: 3px solid #ff5252;">
-                        <h2 style="color: white; margin-top: 0; font-size: 24px; text-align: center;">
-                            ⚠️ Camera Access Blocked
-                        </h2>
-                        <p style="color: white; margin: 15px 0; text-align: center; font-size: 16px; line-height: 1.6;">
-                            Google Sites blocks camera access in embedded pages. <br>
-                            <strong>Click the button below to use the scanner:</strong>
-                        </p>
-                        <div style="text-align: center; margin: 20px 0;">
-                            <button onclick="openInNewTab()" style="background: white; color: #ff5252; padding: 20px 50px; border: none; border-radius: 10px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 6px 15px rgba(0,0,0,0.3); transition: all 0.3s; margin: 10px;">
-                                📷 Open Scanner (Click Here!)
-                            </button>
-                        </div>
-                        <p style="color: white; font-size: 14px; margin-top: 15px; text-align: center; opacity: 0.9;">
-                            This will open the scanner in a new tab where your camera will work.
-                        </p>
-                    </div>
-
-                    <!-- Alternative: Simple version if user already tried -->
-                    <div id="iframeWarningSimple" style="display: none; background-color: #fff3cd; padding: 18px; border-left: 5px solid #ffc107; margin-bottom: 20px; border-radius: 6px;">
-                        <strong style="color: #856404;">ℹ️ Running in embedded mode.</strong>
-                        <button onclick="openInNewTab()" style="background: #2e8b57; color: white; padding: 12px 24px; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin-left: 10px;">
-                            Open in New Tab
-                        </button>
-                    </div>
-
-                    <!-- Scanner Container -->
-                    <div style="max-width: 800px; margin: 0 auto;">
-                        <!-- Camera View Container -->
-                        <div id="cameraViewContainer" style="border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative; display: none;">
-                            <div id="reader" style="width: 100%; border: 2px solid #2e8b57; border-radius: 10px;"></div>
-                            <div id="scanStatus" style="margin-top: 10px; background: #e7f3ff; color: #2196F3; padding: 10px; border-radius: 5px; text-align: center; font-size: 14px; border-left: 4px solid #2196F3;">
-                                Ready to scan
-                            </div>
-                        </div>
-
-                        <!-- Scanner Controls -->
-                        <div style="text-align: center; margin-bottom: 30px;">
-                            <button id="startScanBtn" class="btn btn-primary" onclick="startScanner()" style="padding: 15px 40px; font-size: 16px;">
-                                📷 Start Scanner
-                            </button>
-                            <button id="stopScanBtn" class="btn btn-secondary" onclick="stopScanner()" style="padding: 15px 40px; font-size: 16px; display: none;">
-                                ⏹️ Stop Scanner
-                            </button>
-                        </div>
-
-                        <!-- Scanned Book Details -->
-                        <div id="scannedBookDetails" style="display: none; background-color: #f8f9fa; padding: 25px; border-radius: 10px; border: 2px solid #2e8b57; margin-bottom: 20px;">
-                            <h3 style="color: #2e8b57; margin-bottom: 20px;">📚 Scanned Book Details</h3>
-                            <div style="display: grid; gap: 15px;">
-                                <div>
-                                    <strong style="color: #5d4e37;">ISBN:</strong>
-                                    <p id="scannedISBN" style="margin: 5px 0 0 0; font-size: 16px;"></p>
-                                </div>
-                                <div>
-                                    <strong style="color: #5d4e37;">Book Title:</strong>
-                                    <p id="scannedBookTitle" style="margin: 5px 0 0 0; font-size: 16px; font-weight: 600;"></p>
-                                </div>
-                                <div>
-                                    <strong style="color: #5d4e37;">Author(s):</strong>
-                                    <p id="scannedAuthor" style="margin: 5px 0 0 0; font-size: 16px;"></p>
-                                </div>
-                                <div>
-                                    <strong style="color: #5d4e37;">Publisher:</strong>
-                                    <p id="scannedPublisher" style="margin: 5px 0 0 0; font-size: 16px;"></p>
-                                </div>
-                                <div>
-                                    <strong style="color: #5d4e37;">Published Date:</strong>
-                                    <p id="scannedPublishedDate" style="margin: 5px 0 0 0; font-size: 16px;"></p>
-                                </div>
-                                <div>
-                                    <strong style="color: #5d4e37;">Categories:</strong>
-                                    <p id="scannedCategories" style="margin: 5px 0 0 0; font-size: 16px;"></p>
-                                </div>
-                                <div>
-                                    <strong style="color: #5d4e37;">Description:</strong>
-                                    <p id="scannedDescription" style="margin: 5px 0 0 0; font-size: 14px; line-height: 1.6; color: #666;"></p>
-                                </div>
-                            </div>
-
-                            <!-- Save to ISBN_List Button -->
-                            <div style="margin-top: 25px; text-align: center;">
-                                <button id="saveToISBNListBtn" class="btn btn-primary" onclick="saveToISBNList()" style="padding: 15px 40px; font-size: 16px;">
-                                    💾 Save to ISBN List
-                                </button>
-                                <button class="btn btn-secondary" onclick="clearScannedBook()" style="padding: 15px 40px; font-size: 16px;">
-                                    🔄 Scan Another
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Scanned Books History -->
-                        <div id="scannedBooksHistory" style="margin-top: 30px;">
-                            <h3 style="color: #2e8b57; margin-bottom: 15px;">📋 Recently Scanned Books</h3>
-                            <div id="historyList" style="display: grid; gap: 10px;">
-                                <p style="text-align: center; color: #666; font-style: italic;">No books scanned yet</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Setup View -->
-            <div id="setupView" class="content-section" style="display:none;">
-                <div class="setup-panel">
-                    <h2>Google Sheets Configuration</h2>
-
-                    <div class="highlight-box">
-                        <strong>⚠️ Important:</strong> Configure your Google Apps Script Web App URL to connect this application to your Google Sheets inventory.
-                    </div>
-
-                    <h3>Step 1: Verify Your Google Sheet</h3>
-                    <ol>
-                        <li>Your Google Sheet should have these exact column headers:<br>
-                            <code>BookTitle | Author | Genre | Category | ContactPerson | ContactNumber | UnitNo | Language</code>
-                        </li>
-                        <li>Sheet URL: <a href="https://docs.google.com/spreadsheets/d/1MsfdeZrWk7dYU-D0jjRYmUPb8Q_eY1kCMsx4YXwW_i0/edit" target="_blank" style="color: #2e8b57;">Open your sheet</a></li>
-                        <li>Make sure the column names match exactly (case-sensitive)</li>
-                    </ol>
-
-                    <h3>Step 2: Deploy Google Apps Script</h3>
-                    <ol>
-                        <li>In your Google Sheet, click <strong>Extensions → Apps Script</strong></li>
-                        <li>Delete any existing code and paste the script below</li>
-                        <li>Click <strong>Deploy → New deployment</strong></li>
-                        <li>Select type: <strong>Web app</strong></li>
-                        <li>Set "Execute as" to <strong>Me</strong></li>
-                        <li>Set "Who has access" to <strong>Anyone</strong></li>
-                        <li>Click <strong>Deploy</strong> and authorize the app</li>
-                        <li>Copy the Web App URL provided</li>
-                    </ol>
-
-                    <h3>Google Apps Script Code:</h3>
-                    <textarea readonly class="code-textarea">function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const rows = data.slice(1);
-
-  const books = rows.map(row => {
-    let book = {};
-    headers.forEach((header, index) => {
-      book[header] = row[index];
-    });
-    return book;
-  });
-
-  return ContentService.createTextOutput(JSON.stringify({success: true, data: books}))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const params = JSON.parse(e.postData.contents);
-
-  if (params.action === 'add') {
-    sheet.appendRow([
-      params.bookTitle,      // Column A: BookTitle
-      params.author,         // Column B: Author
-      params.genre,          // Column C: Genre
-      params.category,       // Column D: Category
-      params.contactPerson,  // Column E: ContactPerson
-      params.contactNumber,  // Column F: ContactNumber
-      params.unitNo,         // Column G: UnitNo
-      params.language        // Column H: Language
-    ]);
-    return ContentService.createTextOutput(JSON.stringify({success: true, message: 'Book added successfully'}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  if (params.action === 'delete') {
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === params.bookTitle && data[i][1] === params.author) {
-        sheet.deleteRow(i + 1);
-        return ContentService.createTextOutput(JSON.stringify({success: true, message: 'Book deleted successfully'}))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-    }
-    return ContentService.createTextOutput(JSON.stringify({success: false, message: 'Book not found'}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  return ContentService.createTextOutput(JSON.stringify({success: false, message: 'Unknown action'}))
-    .setMimeType(ContentService.MimeType.JSON);
-}</textarea>
-
-                    <h3>Step 3: Configure Web App URL</h3>
-                    <div class="form-group" style="max-width: 700px; margin-top: 20px;">
-                        <label for="apiUrlInput">Paste Your Web App URL Here:</label>
-                        <input type="text" id="apiUrlInput" class="config-input"
-                               placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
-                        <button class="btn btn-primary" onclick="saveApiUrl()">Save Configuration</button>
-                    </div>
-
-                    <div class="status-box" style="margin-top: 25px;">
-                        <strong>Configuration Status:</strong> <span id="apiStatus">Not configured</span>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Add Book Modal -->
-    <div id="addBookModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add New Book</h2>
-                <span class="close" onclick="closeAddBookModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="addBookForm" onsubmit="addBook(event)">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="bookTitle">Book Title *</label>
-                            <input type="text" id="bookTitle" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="authorName">Author *</label>
-                            <input type="text" id="authorName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="language">Language *</label>
-                            <select id="language" required>
-                                <option value="English" selected>English</option>
-                                <option value="Hindi">Hindi</option>
-                                <option value="Bengali">Bengali</option>
-                                <option value="Tamil">Tamil</option>
-                                <option value="Telugu">Telugu</option>
-                                <option value="Marathi">Marathi</option>
-                                <option value="Urdu">Urdu</option>
-                                <option value="Gujarati">Gujarati</option>
-                                <option value="Kannada">Kannada</option>
-                                <option value="Malayalam">Malayalam</option>
-                                <option value="Spanish">Spanish</option>
-                                <option value="French">French</option>
-                                <option value="Arabic">Arabic</option>
-                                <option value="Chinese">Chinese</option>
-                                <option value="Japanese">Japanese</option>
-                                <option value="German">German</option>
-                                <option value="Russian">Russian</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label>Genre *</label>
-                            <div id="genreContainer" style="border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
-                                <div id="genreCheckboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Historical Fiction" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Historical Fiction</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Horror" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Horror</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Fantasy" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Fantasy</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Mystery" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Mystery</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Romance" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Romance</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Sci-fi" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Sci-fi</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Biography" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Biography</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Graphic" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Graphic</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Memoir" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Memoir</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Thriller" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Thriller</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Literary" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Literary</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Adventure" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Adventure</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Short-Story" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Short-Story</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Dystopian" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Dystopian</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Contemporary" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Contemporary</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="FairyTale" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">FairyTale</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Poetry" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Poetry</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Classics" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Classics</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Humour" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Humour</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Teen-Aged" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Teen-Aged</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Philosophical" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Philosophical</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Children's Specific" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Children's Specific</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Magical" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Magical</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="genre" value="Motivational" onchange="updateGenreTags()">
-                                        <span class="checkbox-label">Motivational</span>
-                                    </label>
-                                </div>
-                                <div id="selectedGenreTags" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 30px;"></div>
-                            </div>
-                            <input type="hidden" id="genreHidden" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Category (Age Range) *</label>
-                            <div id="categoryContainer" style="border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
-                                <div id="categoryCheckboxes" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="category" value="0 to 3 yrs" onchange="updateCategoryTags()">
-                                        <span class="checkbox-label">0 to 3 yrs</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="category" value="3 to 7 yrs" onchange="updateCategoryTags()">
-                                        <span class="checkbox-label">3 to 7 yrs</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="category" value="7 to 12 yrs" onchange="updateCategoryTags()">
-                                        <span class="checkbox-label">7 to 12 yrs</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="category" value="12 to 18 yrs" onchange="updateCategoryTags()">
-                                        <span class="checkbox-label">12 to 18 yrs</span>
-                                    </label>
-                                    <label class="category-checkbox">
-                                        <input type="checkbox" name="category" value="18 +" onchange="updateCategoryTags()">
-                                        <span class="checkbox-label">18 +</span>
-                                    </label>
-                                </div>
-                                <div id="selectedCategoryTags" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 30px;"></div>
-                            </div>
-                            <input type="hidden" id="categoryHidden" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="contactPerson">Contact Person *</label>
-                            <input type="text" id="contactPerson" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="contactNumber">Contact Number *</label>
-                            <input type="tel" id="contactNumber" placeholder="e.g., 1234567890" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="unitNo">Unit No *</label>
-                            <input type="text" id="unitNo" placeholder="e.g., A101 (without hyphen/space)" required>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeAddBookModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="addBookBtn">
-                            <span class="btn-text">Add Book</span>
-                        </button>
-                    </div>
-                </form>
+        <!-- Scanned Books History -->
+        <div id="scannedBooksHistory" style="margin-top: 30px;">
+            <h3 style="color: #2e8b57; margin-bottom: 15px;">📋 Recently Scanned Books</h3>
+            <div id="historyList">
+                <p style="text-align: center; color: #666; font-style: italic;">No books scanned yet</p>
             </div>
         </div>
     </div>
 
-    <!-- Book Details Modal -->
-    <div id="bookDetailsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Book Details</h2>
-                <span class="close" onclick="closeBookDetailsModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div style="display: grid; gap: 20px;">
-                    <div class="detail-row">
-                        <strong style="color: #2e8b57; font-size: 16px;">Book Title:</strong>
-                        <p id="detailBookTitle" style="font-size: 18px; margin: 8px 0 0 0; font-weight: 600;"></p>
-                    </div>
-                    <div class="detail-row">
-                        <strong style="color: #2e8b57; font-size: 16px;">Author:</strong>
-                        <p id="detailAuthor" style="font-size: 16px; margin: 8px 0 0 0;"></p>
-                    </div>
-                    <div class="detail-row">
-                        <strong style="color: #2e8b57; font-size: 16px;">Genre:</strong>
-                        <p id="detailGenre" style="font-size: 16px; margin: 8px 0 0 0;"></p>
-                    </div>
-                    <div class="detail-row">
-                        <strong style="color: #2e8b57; font-size: 16px;">Category:</strong>
-                        <p id="detailCategory" style="font-size: 16px; margin: 8px 0 0 0;"></p>
-                    </div>
-                    <div class="detail-row" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <strong style="color: #2e8b57; font-size: 16px;">Contact Person:</strong>
-                        <p id="detailContactPerson" style="font-size: 16px; margin: 8px 0 0 0;"></p>
-                    </div>
-                    <div class="detail-row" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <strong style="color: #2e8b57; font-size: 16px;">Contact Number:</strong>
-                        <p id="detailContactNumber" style="font-size: 16px; margin: 8px 0 0 0;"></p>
-                    </div>
-                    <div class="detail-row" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <strong style="color: #2e8b57; font-size: 16px;">Unit No:</strong>
-                        <p id="detailUnitNo" style="font-size: 16px; margin: 8px 0 0 0;"></p>
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-primary" onclick="closeBookDetailsModal()">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- How to Use Modal -->
-    <div id="howToUseModal" class="modal">
-        <div class="modal-content" style="max-width: 800px; background: url('antique-book-page.jpg'); background-size: cover; background-position: center; border: 3px solid #8b7355; box-shadow: 0 10px 50px rgba(0,0,0,0.6);">
-            <div class="modal-header" style="background: linear-gradient(135deg, rgba(61, 43, 31, 0.95) 0%, rgba(46, 35, 26, 0.95) 100%); border-bottom: 2px solid #a0826d; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-                <h2 style="color: #d4c4a0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); font-family: 'Georgia', 'Garamond', serif; letter-spacing: 1px;">📚 How to Use</h2>
-                <span class="close" onclick="closeHowToUseModal()" style="color: #d4c4a0;">&times;</span>
-            </div>
-            <div class="modal-body" style="background: linear-gradient(to bottom, rgba(250, 248, 243, 0.92) 0%, rgba(245, 241, 232, 0.95) 100%); max-height: 70vh; overflow-y: auto;">
-                <div style="background: linear-gradient(135deg, rgba(139, 115, 85, 0.25) 0%, rgba(160, 130, 109, 0.15) 100%); padding: 20px; border-radius: 8px; border-left: 4px solid #8b7355; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-                    <h3 style="color: #5d4e37; margin-top: 0; font-size: 18px; font-family: 'Georgia', 'Garamond', serif; text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">🎯 QUICK START - STEPS</h3>
-                </div>
-
-                <div style="line-height: 1.8; color: #3a2f1f; font-family: 'Georgia', 'Garamond', serif;">
-                    <p style="margin-bottom: 15px; text-shadow: 0 1px 1px rgba(255,255,255,0.5);">Once you are in the site <strong style="color: #5d4e37;">Books X Change</strong>, you will see few options under the left pane - <strong style="color: #5d4e37;">Book Manager</strong></p>
-
-                    <div style="margin-bottom: 25px;">
-                        <h4 style="color: #6d5a44; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-family: 'Georgia', 'Garamond', serif; text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">
-                            <span style="background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%); color: #f5f1e8; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">1</span>
-                            Home Page
-                        </h4>
-                        <p style="margin-left: 32px; color: #4a3f2f; text-shadow: 0 1px 1px rgba(255,255,255,0.5); font-family: 'Georgia', 'Garamond', serif;">
-                            Default view - Already shows the total books, total authors and a search pane. It also lists the latest added books as thumb images. Click on each thumb image to view book details individually.
-                        </p>
-                    </div>
-
-                    <div style="margin-bottom: 25px;">
-                        <h4 style="color: #6d5a44; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-family: 'Georgia', 'Garamond', serif; text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">
-                            <span style="background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%); color: #f5f1e8; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">2</span>
-                            Inventory
-                        </h4>
-                        <p style="margin-left: 32px; color: #4a3f2f; text-shadow: 0 1px 1px rgba(255,255,255,0.5); font-family: 'Georgia', 'Garamond', serif;">
-                            View all books registered in the system from various users with book title, author, genre, language, category, unit number, phone number and contact name.
-                        </p>
-                        <ul style="margin-left: 50px; color: #4a3f2f; text-shadow: 0 1px 1px rgba(255,255,255,0.5); font-family: 'Georgia', 'Garamond', serif;">
-                            <li>Search by book title, author, unit number or phone number</li>
-                            <li>Use filters to narrow search by language, genre, or category</li>
-                        </ul>
-                    </div>
-
-                    <div style="margin-bottom: 25px;">
-                        <h4 style="color: #6d5a44; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-family: 'Georgia', 'Garamond', serif; text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">
-                            <span style="background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%); color: #f5f1e8; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">3</span>
-                            Add Book
-                        </h4>
-                        <p style="margin-left: 32px; color: #4a3f2f; text-shadow: 0 1px 1px rgba(255,255,255,0.5); font-family: 'Georgia', 'Garamond', serif;">
-                            Add your owned books to grow the inventory. Fill up the details for each book to submit/add. This gives a confirmation and clears the form for the next entry.
-                        </p>
-                    </div>
-
-                    <div style="margin-bottom: 25px;">
-                        <h4 style="color: #8b4513; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-family: 'Georgia', 'Garamond', serif; text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">
-                            <span style="background: linear-gradient(135deg, #a0522d 0%, #8b4513 100%); color: #f5f1e8; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">4</span>
-                            Delete Book
-                        </h4>
-                        <p style="margin-left: 32px; color: #4a3f2f; text-shadow: 0 1px 1px rgba(255,255,255,0.5); font-family: 'Georgia', 'Garamond', serif;">
-                            <strong style="color: #8b4513;">⚠️ Use with caution!</strong> Update your inventory to remove already registered books. Please perform this carefully to not corrupt or remove any other records accidentally. It asks for confirmation before deleting.
-                        </p>
-                    </div>
-
-                    <div style="margin-bottom: 25px;">
-                        <h4 style="color: #6d5a44; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-family: 'Georgia', 'Garamond', serif; text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">
-                            <span style="background: linear-gradient(135deg, #8b7355 0%, #6d5a44 100%); color: #f5f1e8; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">5</span>
-                            Statistics
-                        </h4>
-                        <p style="margin-left: 32px; color: #4a3f2f; text-shadow: 0 1px 1px rgba(255,255,255,0.5); font-family: 'Georgia', 'Garamond', serif;">
-                            View general chart distribution and metrics of the inventory system. Break down by language, genre, and category.
-                        </p>
-                    </div>
-
-                    <div style="background: linear-gradient(135deg, rgba(160, 130, 109, 0.35) 0%, rgba(139, 115, 85, 0.25) 100%); padding: 15px; border-radius: 8px; border: 2px solid #8b7355; text-align: center; margin-top: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
-                        <p style="margin: 0; color: #5d4e37; font-size: 16px; font-weight: 600; font-family: 'Georgia', 'Garamond', serif; text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">
-                            That's it! Happy book managing! 📚
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Contact Us Modal -->
-    <div id="contactModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #2e8b57 0%, #228b54 100%);">
-                <h2>📞 Contact Us</h2>
-                <span class="close" onclick="closeContactModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div style="text-align: center; padding: 20px 0;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">💬</div>
-                    <p style="font-size: 16px; line-height: 1.8; color: #333; margin-bottom: 25px;">
-                        Happy to assist for any troubles faced during access of this site. Feel free to ring a bell to <strong style="color: #2e8b57;">Nikhil</strong>
-                    </p>
-
-                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2e8b57;">
-                        <div style="margin-bottom: 15px;">
-                            <div style="font-size: 18px; margin-bottom: 8px;">📱 Phone</div>
-                            <a href="tel:9677213817" style="color: #2e8b57; font-size: 20px; font-weight: 600; text-decoration: none;">9677213817</a>
-                        </div>
-                        <div>
-                            <div style="font-size: 18px; margin-bottom: 8px;">✉️ Email</div>
-                            <a href="mailto:nkariyadan2k18@gmail.com" style="color: #2e8b57; font-size: 16px; font-weight: 600; text-decoration: none; word-break: break-all;">nkariyadan2k18@gmail.com</a>
-                        </div>
-                    </div>
-
-                    <p style="font-size: 14px; color: #666; font-style: italic;">Thanks!</p>
-                </div>
-                <div class="form-actions" style="justify-content: center;">
-                    <button type="button" class="btn btn-primary" onclick="closeContactModal()">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteConfirmModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-                <h2>Delete Book</h2>
-                <span class="close" onclick="closeDeleteConfirmModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div style="text-align: center; padding: 20px 0;">
-                    <div style="font-size: 48px; color: #dc3545; margin-bottom: 20px;">⚠️</div>
-                    <p style="font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #333;">Are you sure you want to delete?</p>
-                    <div id="deleteBookList" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; max-height: 200px; overflow-y: auto;">
-                        <!-- Book titles will be inserted here -->
-                    </div>
-                    <p style="font-size: 14px; color: #666;">This action cannot be undone.</p>
-                </div>
-                <div class="form-actions" style="justify-content: center; gap: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeDeleteConfirmModal()" style="min-width: 120px;">Cancel</button>
-                    <button type="button" class="btn btn-delete" id="confirmDeleteBtn" onclick="confirmDelete(event)" style="min-width: 120px; padding: 12px 30px; font-size: 15px;">
-                        <span class="btn-text">Confirm</span>
-                        <span class="loading-text loading-dots">Deleting</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Alert -->
+    <div id="alertBox" class="alert"></div>
 
     <script>
         // Configuration
         const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbytd5eKdlkBLJ9nxS2jx1C5A4pFNdkISnJoPwt2VFu7jzUpMYOa_F6oeZh1o4GY-pOO_w/exec';
         let API_URL = localStorage.getItem('apiUrl') || DEFAULT_API_URL;
-        let allBooks = [];
-        let deleteMode = false;
-
-        // Color palette for book covers
-        const coverColors = [
-            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-            'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
-            'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-            'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-            'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-            'linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%)'
-        ];
-
-        // Initialize
-        window.onload = function() {
-            // Set default API URL if not configured
-            if (!localStorage.getItem('apiUrl')) {
-                localStorage.setItem('apiUrl', DEFAULT_API_URL);
-                API_URL = DEFAULT_API_URL;
-            }
-
-            checkApiConfiguration();
-            if (API_URL) {
-                loadBooks();
-
-                // Auto-refresh every 5 minutes (300000 milliseconds)
-                setInterval(function() {
-                    console.log('Auto-refreshing book data...');
-                    loadBooks();
-                }, 300000); // 5 minutes
-            } else {
-                showView('setup');
-            }
-        };
-
-        // Check API Configuration
-        function checkApiConfiguration() {
-            const statusEl = document.getElementById('apiStatus');
-            if (API_URL) {
-                statusEl.textContent = '✅ Connected - ' + API_URL.substring(0, 40) + '...';
-                statusEl.style.color = '#28a745';
-                document.getElementById('apiUrlInput').value = API_URL;
-            } else {
-                statusEl.textContent = '❌ Not configured - Please set up your Google Apps Script URL';
-                statusEl.style.color = '#dc3545';
-            }
-        }
-
-        // Save API URL
-        function saveApiUrl() {
-            const url = document.getElementById('apiUrlInput').value.trim();
-            if (url) {
-                localStorage.setItem('apiUrl', url);
-                API_URL = url;
-                showAlert('Configuration saved successfully! Loading books...', 'success');
-                checkApiConfiguration();
-                loadBooks();
-                setTimeout(() => showView('home'), 1500);
-            } else {
-                showAlert('Please enter a valid URL', 'error');
-            }
-        }
-
-        // Show Alert
-        function showAlert(message, type) {
-            const alertEl = document.getElementById('alertMessage');
-            alertEl.innerHTML = message + '<span class="close-btn" onclick="this.parentElement.style.display=\'none\'">&times;</span>';
-            alertEl.className = 'alert ' + type;
-            alertEl.style.display = 'block';
-
-            setTimeout(() => {
-                alertEl.style.display = 'none';
-            }, 5000);
-        }
-
-        // View Navigation
-        function showView(view) {
-            // Update active nav item
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            if (event && event.target) {
-                event.target.closest('.nav-item').classList.add('active');
-            }
-
-            // Hide all views
-            document.getElementById('homeView').style.display = 'none';
-            document.getElementById('inventoryView').style.display = 'none';
-            document.getElementById('statisticsView').style.display = 'none';
-            document.getElementById('scannerView').style.display = 'none';
-
-            // Show selected view
-            if (view === 'home') {
-                document.getElementById('homeView').style.display = 'block';
-                // Clear search box when showing home
-                document.getElementById('homeSearchInput').value = '';
-                document.getElementById('homeSearchResultCount').textContent = '';
-                // Reset to show all books
-                displayBookCards(allBooks);
-                updateStatistics(allBooks);
-            } else if (view === 'inventory') {
-                document.getElementById('inventoryView').style.display = 'block';
-                // View only mode - no delete buttons
-                deleteMode = false;
-                document.getElementById('actionColumn').style.display = 'none';
-                displayInventoryTable(allBooks);
-                // Clear search box and filters when showing inventory
-                document.getElementById('inventorySearchInput').value = '';
-                document.getElementById('genreFilter').value = '';
-                document.getElementById('categoryFilter').value = '';
-                document.getElementById('languageFilter').value = '';
-                document.getElementById('searchResultCount').textContent = '';
-            } else if (view === 'statistics') {
-                document.getElementById('statisticsView').style.display = 'block';
-                // Generate and display statistics (default to Genre)
-                currentStatView = 'genre';
-                switchStatView('genre');
-            } else if (view === 'scanner') {
-                document.getElementById('scannerView').style.display = 'block';
-                // Check iframe permissions immediately when scanner view opens
-                setTimeout(() => checkIframePermissions(), 100);
-            }
-        }
-
-        // Load Books
-        async function loadBooks() {
-            if (!API_URL) {
-                showAlert('Error: Google Apps Script URL not configured', 'error');
-                return;
-            }
-
-            document.getElementById('loadingSpinner').style.display = 'block';
-
-            try {
-                console.log('Fetching books from:', API_URL);
-                const response = await fetch(API_URL);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                console.log('API Response:', result);
-
-                if (result.success) {
-                    allBooks = result.data || [];
-
-                    console.log('Loaded', allBooks.length, 'books from Google Sheet');
-
-                    // Debug: Log the actual data structure
-                    if (allBooks.length > 0) {
-                        console.log('First book data:', allBooks[0]);
-                        console.log('Available fields:', Object.keys(allBooks[0]));
-                    }
-
-                    // Update the current view with latest data
-                    const homeView = document.getElementById('homeView');
-                    const inventoryView = document.getElementById('inventoryView');
-
-                    if (homeView && homeView.style.display !== 'none') {
-                        // Home view is active - update cards and statistics
-                        displayBookCards(allBooks);
-                        updateStatistics(allBooks);
-                    } else if (inventoryView && inventoryView.style.display !== 'none') {
-                        // Inventory view is active - update table
-                        displayInventoryTable(allBooks);
-                    }
-
-                    // Update statistics in background for statistics view
-                    updateStatistics(allBooks);
-
-                    showAlert(`Successfully loaded ${allBooks.length} books`, 'success');
-                } else {
-                    console.error('API returned success:false', result);
-                    showAlert('Failed to load books: ' + (result.message || 'Unknown error'), 'error');
-                    allBooks = [];
-                }
-            } catch (error) {
-                console.error('Error loading books:', error);
-                showAlert('Error connecting to Google Sheets: ' + error.message, 'error');
-                allBooks = [];
-            } finally {
-                document.getElementById('loadingSpinner').style.display = 'none';
-            }
-        }
-
-        // Display Book Cards
-        function displayBookCards(books) {
-            const popularContainer = document.getElementById('popularBooks');
-
-            if (!popularContainer) {
-                console.error('Book container not found');
-                return;
-            }
-
-            popularContainer.innerHTML = '';
-
-            if (!books || books.length === 0) {
-                popularContainer.innerHTML = '<p class="no-data" style="grid-column: 1/-1;">No books available. Add books to get started.</p>';
-                return;
-            }
-
-            console.log('Displaying', books.length, 'books');
-
-            // Show latest 10 books (assuming newer books are at the end of the array)
-            // Reverse to get latest first, then take first 10
-            const latestBooks = books.slice().reverse().slice(0, 10);
-
-            latestBooks.forEach((book, index) => {
-                const card = createBookCard(book, index);
-                if (card) {
-                    popularContainer.appendChild(card);
-                }
-            });
-        }
-
-        // Create Book Card
-        function createBookCard(book, index) {
-            const card = document.createElement('div');
-            card.className = 'book-card';
-
-            const color = coverColors[index % coverColors.length];
-
-            // Get book title - try multiple variations
-            const title = book['BookTitle'] || book['Book Title'] || book.bookTitle ||
-                         book['Title'] || book.title || 'Untitled';
-
-            // Get unit number - exact field name from Google Sheet
-            const unitNo = book['Unit No'] || book['UnitNo'] || book['Unit Number'] ||
-                          book.unitNo || book['unit_no'] || 'N/A';
-
-            // Get contact number - exact field name from Google Sheet
-            const contactNumber = book['Contact Number'] || book['ContactNumber'] ||
-                                 book.contactNumber || book['Phone'] || book.phone ||
-                                 book['contact_number'] || 'N/A';
-
-            card.innerHTML = `
-                <div class="book-cover" style="background: ${color}">
-                    <span class="favorite-icon">♥</span>
-                    ${title}
-                </div>
-                <div class="book-title" title="${title}">${title}</div>
-                <div class="book-author">by ${book['Author'] || book.author || 'Unknown Author'}</div>
-            `;
-
-            // Add click event to show details
-            card.onclick = function() {
-                showBookDetails(book);
-            };
-
-            return card;
-        }
-
-        // Display Inventory Table
-        function displayInventoryTable(books) {
-            const tbody = document.getElementById('inventoryTableBody');
-
-            if (!tbody) {
-                console.error('Inventory table body not found');
-                return;
-            }
-
-            tbody.innerHTML = '';
-
-            if (!books || books.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="no-data">No books in inventory. Add books to get started.</td></tr>';
-                return;
-            }
-
-            console.log('Displaying', books.length, 'books in inventory');
-
-            books.forEach(book => {
-                const row = document.createElement('tr');
-
-                // Get book title - try multiple variations
-                const bookTitle = book['BookTitle'] || book['Book Title'] || book.bookTitle ||
-                                 book['Title'] || book.title || '';
-
-                // Get author - for delete function
-                const author = book['Author'] || book.author || '';
-
-                // Get unit number - exact field name from Google Sheet
-                const unitNo = book['Unit No'] || book['UnitNo'] || book['Unit Number'] ||
-                              book.unitNo || book['unit_no'] || '';
-
-                // Get contact number - exact field name from Google Sheet
-                const contactNumber = book['Contact Number'] || book['ContactNumber'] ||
-                                     book.contactNumber || book['Phone'] || book.phone ||
-                                     book['contact_number'] || '';
-
-                row.innerHTML = `
-                    <td>${bookTitle || 'N/A'}</td>
-                    <td>${author || 'N/A'}</td>
-                    <td>${unitNo || 'N/A'}</td>
-                    <td>${contactNumber || 'N/A'}</td>
-                    <td style="display:${deleteMode ? 'table-cell' : 'none'};">
-                        <button class="btn btn-delete" onclick="deleteBook('${bookTitle.replace(/'/g, "\\'")}', '${author.replace(/'/g, "\\'")}')">Delete</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // Update Statistics
-        function updateStatistics(books) {
-            const totalBooks = books.length;
-            const uniqueAuthors = new Set();
-
-            books.forEach(book => {
-                const author = book['Author'] || book.author;
-                if (author) {
-                    uniqueAuthors.add(author.trim().toLowerCase());
-                }
-            });
-
-            document.getElementById('totalBooks').textContent = totalBooks;
-            document.getElementById('totalAuthors').textContent = uniqueAuthors.size;
-        }
-
-        // Filter Inventory (Live Search)
-        function filterInventory() {
-            const searchTerm = document.getElementById('inventorySearchInput').value.toLowerCase().trim();
-            const genreFilter = document.getElementById('genreFilter').value;
-            const categoryFilter = document.getElementById('categoryFilter').value;
-            const languageFilter = document.getElementById('languageFilter').value;
-            const searchResultCount = document.getElementById('searchResultCount');
-
-            // Filter books based on search term, genre, category, and language
-            const filteredBooks = allBooks.filter(book => {
-                // Try exact Google Sheet field names first
-                const bookTitle = (book['BookTitle'] || book['Book Title'] || book.bookTitle || book.title || '').toString().toLowerCase();
-                const author = (book['Author'] || book.author || '').toString().toLowerCase();
-                const unitNo = (book['Unit No'] || book['UnitNo'] || book.unitNo || '').toString().toLowerCase();
-                const contactNumber = (book['Contact Number'] || book['ContactNumber'] || book.contactNumber || '').toString().toLowerCase();
-                const genre = (book['Genre'] || book.genre || '').toString();
-                const category = (book['Category'] || book.category || '').toString();
-                const language = (book['Language'] || book.language || '').toString().trim();
-
-                // Search term match (if provided)
-                const searchMatch = !searchTerm || (
-                    bookTitle.includes(searchTerm) ||
-                    author.includes(searchTerm) ||
-                    unitNo.includes(searchTerm) ||
-                    contactNumber.includes(searchTerm)
-                );
-
-                // Genre filter match (if selected)
-                const genreMatch = !genreFilter || genre.includes(genreFilter);
-
-                // Category filter match (if selected)
-                const categoryMatch = !categoryFilter || category.includes(categoryFilter);
-
-                // Language filter match (if selected) - exact match, case-insensitive
-                const languageMatch = !languageFilter || language.toLowerCase() === languageFilter.toLowerCase();
-
-                return searchMatch && genreMatch && categoryMatch && languageMatch;
-            });
-
-            // Display filtered results
-            displayInventoryTable(filteredBooks);
-
-            // Update result count
-            const hasFilters = searchTerm || genreFilter || categoryFilter || languageFilter;
-
-            if (filteredBooks.length === 0 && hasFilters) {
-                let filterText = 'No books found';
-                if (searchTerm) filterText += ` matching "${searchTerm}"`;
-                if (genreFilter) filterText += ` in genre "${genreFilter}"`;
-                if (categoryFilter) filterText += ` in category "${categoryFilter}"`;
-                if (languageFilter) filterText += ` in language "${languageFilter}"`;
-                searchResultCount.textContent = filterText;
-                searchResultCount.style.color = '#dc3545';
-            } else if (filteredBooks.length === allBooks.length) {
-                searchResultCount.textContent = '';
-            } else {
-                searchResultCount.textContent = `Showing ${filteredBooks.length} of ${allBooks.length} books`;
-                searchResultCount.style.color = '#2e8b57';
-            }
-        }
-
-        // Filter Books from Home View
-        function filterBooksFromHome() {
-            const searchTerm = document.getElementById('homeSearchInput').value.toLowerCase().trim();
-            const searchResultCount = document.getElementById('homeSearchResultCount');
-
-            // If no search term, show all books
-            if (!searchTerm) {
-                displayBookCards(allBooks);
-                searchResultCount.textContent = '';
-                return;
-            }
-
-            // Filter books based on search term
-            const filteredBooks = allBooks.filter(book => {
-                // Try exact Google Sheet field names first
-                const bookTitle = (book['BookTitle'] || book['Book Title'] || book.bookTitle || book.title || '').toString().toLowerCase();
-                const author = (book['Author'] || book.author || '').toString().toLowerCase();
-                const unitNo = (book['Unit No'] || book['UnitNo'] || book.unitNo || '').toString().toLowerCase();
-                const contactNumber = (book['Contact Number'] || book['ContactNumber'] || book.contactNumber || '').toString().toLowerCase();
-
-                const matches = bookTitle.includes(searchTerm) ||
-                               author.includes(searchTerm) ||
-                               unitNo.includes(searchTerm) ||
-                               contactNumber.includes(searchTerm);
-
-                return matches;
-            });
-
-            // Display filtered results
-            displayBookCards(filteredBooks);
-
-            // Update result count
-            if (filteredBooks.length === 0) {
-                searchResultCount.textContent = `No books found matching "${searchTerm}"`;
-                searchResultCount.style.color = '#dc3545';
-            } else if (filteredBooks.length === allBooks.length) {
-                searchResultCount.textContent = '';
-            } else {
-                searchResultCount.textContent = `Showing ${filteredBooks.length} of ${allBooks.length} books`;
-                searchResultCount.style.color = '#2e8b57';
-            }
-        }
-
-        // Manual Refresh Inventory
-        async function refreshInventory() {
-            const refreshBtn = document.querySelector('.refresh-btn');
-
-            // Add refreshing state
-            refreshBtn.classList.add('refreshing');
-
-            try {
-                // Reload books from Google Sheet
-                await loadBooks();
-
-                // If in inventory view, reapply current filters
-                if (document.getElementById('inventoryView').style.display !== 'none') {
-                    filterInventory();
-                }
-
-                showAlert('Inventory refreshed successfully!', 'success');
-            } catch (error) {
-                console.error('Error refreshing inventory:', error);
-                showAlert('Failed to refresh inventory', 'error');
-            } finally {
-                // Remove refreshing state
-                refreshBtn.classList.remove('refreshing');
-            }
-        }
-
-        // Toggle Delete Mode
-        async function toggleDeleteMode() {
-            // Enable delete mode
-            deleteMode = true;
-
-            // Update active nav item
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            // Find and activate the Delete Book nav item
-            const navItems = document.querySelectorAll('.nav-item');
-            navItems.forEach(item => {
-                if (item.textContent.includes('Delete Book')) {
-                    item.classList.add('active');
-                }
-            });
-
-            // Hide all views
-            document.getElementById('homeView').style.display = 'none';
-            document.getElementById('inventoryView').style.display = 'none';
-            document.getElementById('statisticsView').style.display = 'none';
-
-            // Show inventory view
-            document.getElementById('inventoryView').style.display = 'block';
-
-            // Show action column with delete buttons
-            document.getElementById('actionColumn').style.display = 'table-cell';
-
-            // Clear search box and filters
-            document.getElementById('inventorySearchInput').value = '';
-            document.getElementById('genreFilter').value = '';
-            document.getElementById('categoryFilter').value = '';
-            document.getElementById('languageFilter').value = '';
-            document.getElementById('searchResultCount').textContent = '';
-
-            // Reload fresh data from Google Sheets
-            await loadBooks();
-
-            // Display inventory with delete buttons
-            displayInventoryTable(allBooks);
-        }
-
-        // Open Add Book Modal
-        function openAddBookModal() {
-            if (!API_URL) {
-                showAlert('Error: System not configured. Please contact administrator.', 'error');
-                return;
-            }
-            document.getElementById('addBookModal').style.display = 'block';
-        }
-
-        // Close Add Book Modal
-        function closeAddBookModal() {
-            document.getElementById('addBookModal').style.display = 'none';
-            document.getElementById('addBookForm').reset();
-            // Clear category tags
-            document.getElementById('selectedCategoryTags').innerHTML = '';
-            document.getElementById('categoryHidden').value = '';
-            // Clear genre tags
-            document.getElementById('selectedGenreTags').innerHTML = '';
-            document.getElementById('genreHidden').value = '';
-        }
-
-        // Update Category Tags
-        function updateCategoryTags() {
-            const checkboxes = document.querySelectorAll('input[name="category"]:checked');
-            const selectedValues = Array.from(checkboxes).map(cb => cb.value);
-            const tagsContainer = document.getElementById('selectedCategoryTags');
-            const hiddenInput = document.getElementById('categoryHidden');
-
-            // Update hidden input value
-            hiddenInput.value = selectedValues.join(', ');
-
-            // Clear existing tags
-            tagsContainer.innerHTML = '';
-
-            // Create tag for each selected value
-            selectedValues.forEach(value => {
-                const tag = document.createElement('div');
-                tag.className = 'category-tag';
-                tag.innerHTML = `
-                    <span>${value}</span>
-                    <span class="remove-tag" onclick="removeCategory('${value}')">&times;</span>
-                `;
-                tagsContainer.appendChild(tag);
-            });
-        }
-
-        // Remove Category
-        function removeCategory(value) {
-            const checkbox = document.querySelector(`input[name="category"][value="${value}"]`);
-            if (checkbox) {
-                checkbox.checked = false;
-                updateCategoryTags();
-            }
-        }
-
-        // Update Genre Tags
-        function updateGenreTags() {
-            const checkboxes = document.querySelectorAll('input[name="genre"]:checked');
-            const selectedValues = Array.from(checkboxes).map(cb => cb.value);
-            const tagsContainer = document.getElementById('selectedGenreTags');
-            const hiddenInput = document.getElementById('genreHidden');
-
-            // Update hidden input value
-            hiddenInput.value = selectedValues.join(', ');
-
-            // Clear existing tags
-            tagsContainer.innerHTML = '';
-
-            // Create tag for each selected value
-            selectedValues.forEach(value => {
-                const tag = document.createElement('div');
-                tag.className = 'category-tag';
-                tag.innerHTML = `
-                    <span>${value}</span>
-                    <span class="remove-tag" onclick="removeGenre('${value}')">&times;</span>
-                `;
-                tagsContainer.appendChild(tag);
-            });
-        }
-
-        // Remove Genre
-        function removeGenre(value) {
-            const checkbox = document.querySelector(`input[name="genre"][value="${value}"]`);
-            if (checkbox) {
-                checkbox.checked = false;
-                updateGenreTags();
-            }
-        }
-
-        // Add ripple effect to button
-        function createRipple(event) {
-            const button = event.currentTarget;
-            const ripple = document.createElement('span');
-            const rect = button.getBoundingClientRect();
-            const size = Math.max(rect.width, rect.height);
-            const x = event.clientX - rect.left - size / 2;
-            const y = event.clientY - rect.top - size / 2;
-
-            ripple.style.width = ripple.style.height = size + 'px';
-            ripple.style.left = x + 'px';
-            ripple.style.top = y + 'px';
-            ripple.classList.add('btn-ripple');
-
-            button.appendChild(ripple);
-
-            setTimeout(() => {
-                ripple.remove();
-            }, 600);
-        }
-
-        // Add Book
-        async function addBook(event) {
-            event.preventDefault();
-
-            // Create ripple effect
-            createRipple(event);
-
-            // Get the button element
-            const addBookBtn = document.getElementById('addBookBtn');
-
-            // Get selected genres from hidden input
-            const selectedGenres = document.getElementById('genreHidden').value;
-
-            if (!selectedGenres) {
-                showAlert('Please select at least one genre', 'error');
-                return;
-            }
-
-            // Get selected categories from hidden input
-            const selectedCategories = document.getElementById('categoryHidden').value;
-
-            if (!selectedCategories) {
-                showAlert('Please select at least one category', 'error');
-                return;
-            }
-
-            const bookData = {
-                action: 'add',
-                bookTitle: document.getElementById('bookTitle').value,  // Column A
-                author: document.getElementById('authorName').value,     // Column B
-                genre: selectedGenres,                                   // Column C
-                category: selectedCategories,                            // Column D
-                contactPerson: document.getElementById('contactPerson').value, // Column E
-                contactNumber: document.getElementById('contactNumber').value, // Column F
-                unitNo: document.getElementById('unitNo').value,         // Column G
-                language: document.getElementById('language').value      // Column H
-            };
-
-            console.log('Adding book with data:', bookData);
-
-            // Show loading state
-            addBookBtn.classList.add('loading');
-            addBookBtn.disabled = true;
-
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(bookData)
-                });
-
-                const result = await response.json();
-                console.log('Add book response:', result);
-
-                if (result.success) {
-                    showAlert('Book Added Successfully!', 'success');
-
-                    // Clear all form fields
-                    document.getElementById('addBookForm').reset();
-
-                    // Clear genre checkboxes and tags
-                    document.querySelectorAll('input[name="genre"]').forEach(cb => cb.checked = false);
-                    document.getElementById('selectedGenreTags').innerHTML = '';
-                    document.getElementById('genreHidden').value = '';
-
-                    // Clear category checkboxes and tags
-                    document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = false);
-                    document.getElementById('selectedCategoryTags').innerHTML = '';
-                    document.getElementById('categoryHidden').value = '';
-
-                    // Reload books to update the home view
-                    loadBooks();
-
-                    // Keep modal open for next entry
-                } else {
-                    showAlert(result.message || 'Failed to add book', 'error');
-                }
-            } catch (error) {
-                console.error('Error adding book:', error);
-                showAlert('Error adding book. Please try again.', 'error');
-            } finally {
-                // Remove loading state
-                addBookBtn.classList.remove('loading');
-                addBookBtn.disabled = false;
-            }
-        }
-
-        // Store book data for deletion
-        let booksToDelete = [];
-
-        // Delete Book - Show confirmation modal
-        function deleteBook(bookTitle, author) {
-            // Store the book to delete
-            booksToDelete = [{
-                bookTitle: bookTitle,
-                author: author
-            }];
-
-            // Display book title in the modal
-            const deleteBookList = document.getElementById('deleteBookList');
-            deleteBookList.innerHTML = `
-                <div style="text-align: left;">
-                    <strong style="color: #dc3545; font-size: 16px;">"${bookTitle}"</strong>
-                    <p style="color: #666; font-size: 14px; margin: 5px 0 0 0;">by ${author}</p>
-                </div>
-            `;
-
-            // Show the modal
-            document.getElementById('deleteConfirmModal').style.display = 'block';
-        }
-
-        // Close Delete Confirmation Modal
-        function closeDeleteConfirmModal() {
-            document.getElementById('deleteConfirmModal').style.display = 'none';
-            booksToDelete = [];
-        }
-
-        // Confirm Delete - Actually delete the book
-        async function confirmDelete(event) {
-            if (booksToDelete.length === 0) {
-                closeDeleteConfirmModal();
-                return;
-            }
-
-            // Create ripple effect
-            createRipple(event);
-
-            // Get the button element
-            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-
-            // For now, handle single delete (can be extended for bulk later)
-            const book = booksToDelete[0];
-
-            // Show loading state
-            confirmDeleteBtn.classList.add('loading');
-            confirmDeleteBtn.disabled = true;
-
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'delete',
-                        bookTitle: book.bookTitle,
-                        author: book.author
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showAlert('Book deleted successfully!', 'success');
-                    closeDeleteConfirmModal();
-
-                    // Clear search box in inventory
-                    document.getElementById('inventorySearchInput').value = '';
-                    document.getElementById('searchResultCount').textContent = '';
-
-                    // Reload all books from Google Sheet
-                    loadBooks();
-
-                    // Display all books in inventory table
-                    setTimeout(() => {
-                        displayInventoryTable(allBooks);
-                    }, 500);
-                } else {
-                    showAlert(result.message || 'Failed to delete book', 'error');
-                }
-            } catch (error) {
-                console.error('Error deleting book:', error);
-                showAlert('Error deleting book. Please try again.', 'error');
-            } finally {
-                // Remove loading state
-                confirmDeleteBtn.classList.remove('loading');
-                confirmDeleteBtn.disabled = false;
-            }
-        }
-
-        // Scroll books (placeholder for carousel functionality)
-        function scrollBooks(section, direction) {
-            // Simple implementation - in production, implement proper carousel
-            showAlert('Navigation feature - scroll ' + (direction > 0 ? 'right' : 'left'), 'success');
-        }
-
-        // Show Book Details Modal
-        function showBookDetails(book) {
-            // Get all book details with field name variations
-            const bookTitle = book['BookTitle'] || book['Book Title'] || book.bookTitle || book.title || 'N/A';
-            const author = book['Author'] || book.author || 'N/A';
-            const genre = book['Genre'] || book.genre || 'N/A';
-            const category = book['Category'] || book.category || 'N/A';
-            const contactPerson = book['ContactPerson'] || book['Contact Person'] || book.contactPerson || 'N/A';
-            const contactNumber = book['Contact Number'] || book['ContactNumber'] || book.contactNumber || 'N/A';
-            const unitNo = book['Unit No'] || book['UnitNo'] || book.unitNo || 'N/A';
-
-            // Populate modal with book details
-            document.getElementById('detailBookTitle').textContent = bookTitle;
-            document.getElementById('detailAuthor').textContent = author;
-            document.getElementById('detailGenre').textContent = genre;
-            document.getElementById('detailCategory').textContent = category;
-            document.getElementById('detailContactPerson').textContent = contactPerson;
-            document.getElementById('detailContactNumber').textContent = '📞 ' + contactNumber;
-            document.getElementById('detailUnitNo').textContent = '📍 ' + unitNo;
-
-            // Show the modal
-            document.getElementById('bookDetailsModal').style.display = 'block';
-        }
-
-        // Close Book Details Modal
-        function closeBookDetailsModal() {
-            document.getElementById('bookDetailsModal').style.display = 'none';
-        }
-
-        // Open How to Use Modal
-        function openHowToUseModal() {
-            document.getElementById('howToUseModal').style.display = 'block';
-        }
-
-        // Close How to Use Modal
-        function closeHowToUseModal() {
-            document.getElementById('howToUseModal').style.display = 'none';
-        }
-
-        // Open Contact Modal
-        function openContactModal() {
-            document.getElementById('contactModal').style.display = 'block';
-        }
-
-        // Close Contact Modal
-        function closeContactModal() {
-            document.getElementById('contactModal').style.display = 'none';
-        }
-
-        // Close modal on outside click
-        window.onclick = function(event) {
-            const addBookModal = document.getElementById('addBookModal');
-            const bookDetailsModal = document.getElementById('bookDetailsModal');
-            const deleteConfirmModal = document.getElementById('deleteConfirmModal');
-            const howToUseModal = document.getElementById('howToUseModal');
-            const contactModal = document.getElementById('contactModal');
-
-            if (event.target === addBookModal) {
-                closeAddBookModal();
-            }
-            if (event.target === bookDetailsModal) {
-                closeBookDetailsModal();
-            }
-            if (event.target === deleteConfirmModal) {
-                closeDeleteConfirmModal();
-            }
-            if (event.target === howToUseModal) {
-                closeHowToUseModal();
-            }
-            if (event.target === contactModal) {
-                closeContactModal();
-            }
-        }
-
-        // Statistics Chart
-        let statsChartInstance = null;
-        let currentStatView = 'genre';
-
-        // Switch Statistics View (Genre, Category, or Language)
-        function switchStatView(type) {
-            currentStatView = type;
-
-            // Update button styles
-            const genreBtn = document.getElementById('genreStatsBtn');
-            const categoryBtn = document.getElementById('categoryStatsBtn');
-            const languageBtn = document.getElementById('languageStatsBtn');
-
-            // Reset all buttons
-            genreBtn.style.background = 'transparent';
-            genreBtn.style.color = '#5d4e37';
-            categoryBtn.style.background = 'transparent';
-            categoryBtn.style.color = '#5d4e37';
-            languageBtn.style.background = 'transparent';
-            languageBtn.style.color = '#5d4e37';
-
-            // Set active button
-            if (type === 'genre') {
-                genreBtn.style.background = 'linear-gradient(135deg, #8b7355 0%, #6d5a44 100%)';
-                genreBtn.style.color = '#f5f1e8';
-                document.getElementById('statsTitle').textContent = 'Genre Distribution';
-                document.getElementById('breakdownTitle').textContent = 'Genre Breakdown';
-            } else if (type === 'category') {
-                categoryBtn.style.background = 'linear-gradient(135deg, #8b7355 0%, #6d5a44 100%)';
-                categoryBtn.style.color = '#f5f1e8';
-                document.getElementById('statsTitle').textContent = 'Category Distribution';
-                document.getElementById('breakdownTitle').textContent = 'Category Breakdown';
-            } else if (type === 'language') {
-                languageBtn.style.background = 'linear-gradient(135deg, #8b7355 0%, #6d5a44 100%)';
-                languageBtn.style.color = '#f5f1e8';
-                document.getElementById('statsTitle').textContent = 'Language Distribution';
-                document.getElementById('breakdownTitle').textContent = 'Language Breakdown';
-            }
-
-            // Display the appropriate chart
-            displayStatsChart(allBooks, type);
-        }
-
-        function displayStatsChart(books, type) {
-            if (!books || books.length === 0) {
-                document.getElementById('statsList').innerHTML = '<p style="text-align: center; color: #666;">No books available to generate statistics.</p>';
-                return;
-            }
-
-            // Count books by genre, category, or language
-            const counts = {};
-            books.forEach(book => {
-                let fieldValue = '';
-                if (type === 'genre') {
-                    fieldValue = (book['Genre'] || book.genre || '').toString();
-                } else if (type === 'category') {
-                    fieldValue = (book['Category'] || book.category || '').toString();
-                } else if (type === 'language') {
-                    fieldValue = (book['Language'] || book.language || '').toString();
-                }
-
-                if (fieldValue) {
-                    // Split by comma in case multiple values
-                    const valueArray = fieldValue.split(',').map(c => c.trim());
-                    valueArray.forEach(val => {
-                        if (val) {
-                            counts[val] = (counts[val] || 0) + 1;
-                        }
-                    });
-                }
-            });
-
-            // Prepare data for chart
-            const labels = Object.keys(counts);
-            const data = Object.values(counts);
-            const total = data.reduce((a, b) => a + b, 0);
-
-            if (labels.length === 0) {
-                document.getElementById('statsList').innerHTML = `<p style="text-align: center; color: #666;">No ${type} data available.</p>`;
-                return;
-            }
-
-            // Define colorful spectrum for pie chart
-            const colors = [
-                '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-                '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788',
-                '#E74C3C', '#3498DB', '#9B59B6', '#1ABC9C', '#F39C12',
-                '#E67E22', '#16A085', '#27AE60', '#2980B9', '#8E44AD',
-                '#C0392B', '#D35400', '#F1C40F', '#2ECC71', '#3498DB',
-                '#9B59B6', '#E91E63', '#00BCD4', '#4CAF50', '#FF9800',
-                '#795548', '#607D8B', '#FF5722', '#CDDC39', '#009688'
-            ];
-
-            // Destroy previous chart if exists
-            if (statsChartInstance) {
-                statsChartInstance.destroy();
-            }
-
-            // Create pie chart
-            const ctx = document.getElementById('statsChart').getContext('2d');
-            statsChartInstance = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colors,
-                        borderColor: '#fff',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    size: 14,
-                                    family: 'Georgia, Garamond, serif'
-                                },
-                                color: '#3a3a3a',
-                                padding: 15
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return label + ': ' + value + ' books (' + percentage + '%)';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Display breakdown list
-            const listHTML = labels.map((label, index) => {
-                const count = data[index];
-                const percentage = ((count / total) * 100).toFixed(1);
-                const color = colors[index % colors.length];
-
-                return `
-                    <div style="background-color: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid ${color}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-weight: 600; color: #3a3a3a;">${label}</span>
-                            <span style="color: #666;">${count} books</span>
-                        </div>
-                        <div style="margin-top: 8px; background-color: #e8e4dc; height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background-color: ${color}; height: 100%; width: ${percentage}%; transition: width 0.3s;"></div>
-                        </div>
-                        <div style="margin-top: 5px; text-align: right; font-size: 12px; color: #666;">${percentage}%</div>
-                    </div>
-                `;
-            }).join('');
-
-            document.getElementById('statsList').innerHTML = listHTML;
-        }
-
-        // ============================================
-        // BARCODE SCANNER FUNCTIONALITY
-        // ============================================
 
         let html5QrcodeScanner = null;
         let currentScannedBook = null;
         let scannedBooksHistory = [];
         let isScannerActive = false;
 
-        // Check if running in iframe (Google Sites)
+        // Check if running in iframe
         function isInIframe() {
             try {
                 return window.self !== window.top;
@@ -3403,159 +346,89 @@ function doPost(e) {
             }
         }
 
-        // Open current page in new tab with full permissions
+        // Open in new tab
         function openInNewTab() {
             const currentUrl = window.location.href;
             window.open(currentUrl, '_blank');
         }
 
-        // Check iframe camera permissions on scanner view load
+        // Show alert
+        function showAlert(message, type) {
+            const alertEl = document.getElementById('alertBox');
+            alertEl.textContent = message;
+            alertEl.className = 'alert alert-' + type;
+            alertEl.style.display = 'block';
+
+            setTimeout(() => {
+                alertEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Check iframe permissions on load
         async function checkIframePermissions() {
             console.log('=== IFRAME PERMISSION CHECK ===');
 
-            // If not in iframe, definitely hide all warnings
             if (!isInIframe()) {
                 console.log('✅ Not in iframe - camera should work normally');
                 document.getElementById('iframeWarning').style.display = 'none';
-                document.getElementById('iframeWarningSimple').style.display = 'none';
                 return;
             }
 
-            console.log('⚠️ Running in iframe (Google Sites detected)');
-
-            // For iframes, show warning immediately (Google Sites blocks by default)
-            // We'll show the big warning first
+            console.log('⚠️ Running in iframe - checking camera...');
             document.getElementById('iframeWarning').style.display = 'block';
-            document.getElementById('iframeWarningSimple').style.display = 'none';
 
-            // Try to access camera to see if iframe allows it
             try {
-                console.log('Testing camera access in iframe...');
-                const testStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
-                });
+                const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 testStream.getTracks().forEach(track => track.stop());
-
-                console.log('✅ SURPRISE! Camera IS accessible in iframe!');
-                // If camera works, hide the big warning and show simple info
+                console.log('✅ Camera IS accessible in iframe!');
                 document.getElementById('iframeWarning').style.display = 'none';
-                document.getElementById('iframeWarningSimple').style.display = 'block';
             } catch (error) {
-                console.log('❌ Camera NOT accessible in iframe:', error.name);
-                console.log('   Error message:', error.message);
-                // Keep the big warning visible
+                console.log('❌ Camera NOT accessible in iframe');
                 document.getElementById('iframeWarning').style.display = 'block';
-                document.getElementById('iframeWarningSimple').style.display = 'none';
             }
         }
 
-        // Check camera permissions before starting
+        // Check camera permissions
         async function checkCameraPermissions() {
             console.log('=== CAMERA PERMISSION CHECK ===');
-            console.log('Is in iframe:', isInIframe());
-            console.log('Protocol:', window.location.protocol);
-            console.log('Host:', window.location.host);
 
-            // Check if we're on HTTPS (required for camera access)
             if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                throw new Error('Camera access requires HTTPS. Please make sure you are accessing this page via https://');
+                throw new Error('Camera access requires HTTPS.');
             }
 
-            // Check if getUserMedia is supported
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                console.error('getUserMedia not supported');
-                throw new Error('Your browser does not support camera access. Please use Chrome, Firefox, Safari, or Edge.');
-            }
-
-            // Check if in iframe and provide helpful message
-            if (isInIframe()) {
-                console.log('⚠️ Running in iframe (Google Sites). Camera permission popup should appear from parent page.');
-            }
-
-            // Query camera permission status if supported
-            if (navigator.permissions && navigator.permissions.query) {
-                try {
-                    const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-                    console.log('Camera permission status:', permissionStatus.state);
-
-                    if (permissionStatus.state === 'denied') {
-                        throw new Error('Camera access was previously denied. Please reset camera permissions in your browser settings and try again.');
-                    }
-                } catch (permError) {
-                    console.log('Permission API not fully supported, will try direct access');
-                }
+                throw new Error('Your browser does not support camera access.');
             }
 
             try {
-                console.log('Requesting camera access...');
-                // Request camera permission with specific constraints
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
+                    video: { facingMode: 'environment' }
                 });
-
-                console.log('✅ Camera access granted');
-                console.log('Available video tracks:', stream.getVideoTracks().length);
-
-                // Stop the stream immediately - we just needed to check permission
-                stream.getTracks().forEach(track => {
-                    console.log('Stopping track:', track.label);
-                    track.stop();
-                });
-
+                stream.getTracks().forEach(track => track.stop());
                 return true;
             } catch (error) {
-                console.error('❌ Camera access error:', error);
-                console.error('Error name:', error.name);
-                console.error('Error message:', error.message);
-
-                // Provide specific error messages
-                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-                    if (isInIframe()) {
-                        throw new Error('Camera permission denied. When the popup appears, please click "Allow". If no popup appeared, your browser may be blocking camera access in iframes. Try opening this page in a new tab instead.');
-                    } else {
-                        throw new Error('Camera permission denied. Please click "Allow" when your browser asks for camera permission.');
-                    }
-                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-                    throw new Error('No camera found on this device. Please connect a camera and try again.');
-                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-                    throw new Error('Camera is already in use by another application. Please close other apps using the camera and try again.');
-                } else if (error.name === 'OverconstrainedError') {
-                    throw new Error('Camera does not meet requirements. Trying with relaxed constraints...');
-                } else if (error.name === 'TypeError') {
-                    throw new Error('Camera access not supported in this context. If you are on Google Sites, make sure the iframe has camera permissions enabled.');
-                } else {
-                    throw new Error('Failed to access camera: ' + error.message + ' (Error: ' + error.name + ')');
+                if (error.name === 'NotAllowedError') {
+                    throw new Error('Camera permission denied. Please click "Allow" when asked.');
                 }
+                throw error;
             }
         }
 
         // Start Scanner
         async function startScanner() {
             try {
-                // Show camera container
                 document.getElementById('cameraViewContainer').style.display = 'block';
                 document.getElementById('scanStatus').textContent = 'Checking camera permissions...';
 
-                // First, check camera permissions
-                console.log('Checking camera permissions...');
                 await checkCameraPermissions();
-                console.log('✅ Camera permissions granted');
-
-                // Hide iframe warning if camera works
                 document.getElementById('iframeWarning').style.display = 'none';
 
                 document.getElementById('scanStatus').textContent = 'Initializing camera...';
 
-                // Create scanner instance if not exists
                 if (!html5QrcodeScanner) {
                     html5QrcodeScanner = new Html5Qrcode("reader");
                 }
 
-                // Configure scanner for barcode scanning
                 const config = {
                     fps: 10,
                     qrbox: { width: 300, height: 150 },
@@ -3567,43 +440,31 @@ function doPost(e) {
                     ]
                 };
 
-                // Success callback when barcode is detected
-                const onScanSuccess = async (decodedText, decodedResult) => {
+                const onScanSuccess = async (decodedText) => {
                     console.log('Scanned barcode:', decodedText);
-
-                    // Update status
                     document.getElementById('scanStatus').textContent = `ISBN detected: ${decodedText}. Fetching book details...`;
                     document.getElementById('scanStatus').style.background = '#d4edda';
                     document.getElementById('scanStatus').style.color = '#155724';
                     document.getElementById('scanStatus').style.borderLeft = '4px solid #28a745';
 
-                    // Stop scanner
                     await stopScanner();
-
-                    // Fetch book details from Google Books API
                     await fetchBookDetails(decodedText);
                 };
 
-                // Error callback (usually means no barcode detected in frame - this is normal)
                 const onScanFailure = (error) => {
-                    // Ignore - this fires constantly when no barcode is in view
+                    // Ignore - fires when no barcode detected
                 };
 
-                console.log('Starting camera with environment (back) facing mode...');
-
-                // Start scanning - try back camera first
                 try {
                     await html5QrcodeScanner.start(
-                        { facingMode: "environment" }, // Use back camera
+                        { facingMode: "environment" },
                         config,
                         onScanSuccess,
                         onScanFailure
                     );
                 } catch (error) {
-                    // If back camera fails, try front camera
-                    console.log('Back camera failed, trying front camera...');
                     await html5QrcodeScanner.start(
-                        { facingMode: "user" }, // Use front camera
+                        { facingMode: "user" },
                         config,
                         onScanSuccess,
                         onScanFailure
@@ -3611,8 +472,6 @@ function doPost(e) {
                 }
 
                 isScannerActive = true;
-
-                // Update UI
                 document.getElementById('scanStatus').textContent = 'Point camera at ISBN barcode...';
                 document.getElementById('scanStatus').style.background = '#e7f3ff';
                 document.getElementById('scanStatus').style.color = '#2196F3';
@@ -3620,26 +479,16 @@ function doPost(e) {
                 document.getElementById('startScanBtn').style.display = 'none';
                 document.getElementById('stopScanBtn').style.display = 'inline-block';
 
-                showAlert('Scanner activated. Point at ISBN barcode.', 'success');
-                console.log('✅ Camera started successfully');
+                showAlert('Scanner activated!', 'success');
             } catch (error) {
                 console.error('❌ Error starting scanner:', error);
 
-                // Show specific error message with guidance
-                let errorMsg = error.message || 'Failed to start camera. Please check camera permissions.';
-
-                // If in iframe and permission denied, show the warning banner
-                if (isInIframe() && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+                if (isInIframe() && (error.name === 'NotAllowedError' || error.message.includes('denied'))) {
                     document.getElementById('iframeWarning').style.display = 'block';
-                    errorMsg = 'Camera access blocked in iframe. Please click the "Open Scanner in New Tab" button above.';
                 }
 
-                showAlert(errorMsg, 'error');
+                showAlert(error.message || 'Failed to start camera', 'error');
                 document.getElementById('cameraViewContainer').style.display = 'none';
-                document.getElementById('scanStatus').textContent = 'Failed to start camera';
-                document.getElementById('scanStatus').style.background = '#f8d7da';
-                document.getElementById('scanStatus').style.color = '#721c24';
-                document.getElementById('scanStatus').style.borderLeft = '4px solid #dc3545';
                 isScannerActive = false;
             }
         }
@@ -3652,14 +501,12 @@ function doPost(e) {
                     isScannerActive = false;
                 }
 
-                // Update UI
                 document.getElementById('cameraViewContainer').style.display = 'none';
                 document.getElementById('startScanBtn').style.display = 'inline-block';
                 document.getElementById('stopScanBtn').style.display = 'none';
                 document.getElementById('scanStatus').textContent = 'Ready to scan';
                 document.getElementById('scanStatus').style.background = '#e7f3ff';
                 document.getElementById('scanStatus').style.color = '#2196F3';
-                document.getElementById('scanStatus').style.borderLeft = '4px solid #2196F3';
             } catch (error) {
                 console.error('Error stopping scanner:', error);
             }
@@ -3670,15 +517,12 @@ function doPost(e) {
             const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
 
             try {
-                document.getElementById('scanStatus').textContent = 'Fetching book information from Google Books...';
-
                 const response = await fetch(apiUrl);
                 const data = await response.json();
 
                 if (data.items && data.items.length > 0) {
                     const bookInfo = data.items[0].volumeInfo;
 
-                    // Store current scanned book
                     currentScannedBook = {
                         isbn: isbn,
                         title: bookInfo.title || 'N/A',
@@ -3686,17 +530,12 @@ function doPost(e) {
                         publisher: bookInfo.publisher || 'N/A',
                         publishedDate: bookInfo.publishedDate || 'N/A',
                         categories: bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A',
-                        description: bookInfo.description || 'No description available',
-                        imageUrl: bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : null
+                        description: bookInfo.description || 'No description available'
                     };
 
-                    // Display book details
                     displayScannedBook(currentScannedBook);
-
-                    // Add to history
                     addToHistory(currentScannedBook);
-
-                    showAlert('Book details retrieved successfully!', 'success');
+                    showAlert('Book details retrieved!', 'success');
                 } else {
                     showAlert('No book details found for ISBN: ' + isbn, 'error');
                     currentScannedBook = {
@@ -3712,11 +551,11 @@ function doPost(e) {
                 }
             } catch (error) {
                 console.error('Error fetching book details:', error);
-                showAlert('Error fetching book details: ' + error.message, 'error');
+                showAlert('Error fetching book details', 'error');
             }
         }
 
-        // Display Scanned Book Details
+        // Display Scanned Book
         function displayScannedBook(book) {
             document.getElementById('scannedISBN').textContent = book.isbn;
             document.getElementById('scannedBookTitle').textContent = book.title;
@@ -3725,7 +564,6 @@ function doPost(e) {
             document.getElementById('scannedPublishedDate').textContent = book.publishedDate;
             document.getElementById('scannedCategories').textContent = book.categories;
             document.getElementById('scannedDescription').textContent = book.description;
-
             document.getElementById('scannedBookDetails').style.display = 'block';
         }
 
@@ -3733,20 +571,14 @@ function doPost(e) {
         function clearScannedBook() {
             currentScannedBook = null;
             document.getElementById('scannedBookDetails').style.display = 'none';
-            document.getElementById('scanStatus').textContent = 'Ready to scan';
         }
 
         // Add to History
         function addToHistory(book) {
-            // Add to beginning of array
             scannedBooksHistory.unshift(book);
-
-            // Keep only last 10 scans
             if (scannedBooksHistory.length > 10) {
                 scannedBooksHistory.pop();
             }
-
-            // Update history display
             updateHistoryDisplay();
         }
 
@@ -3760,14 +592,10 @@ function doPost(e) {
             }
 
             historyList.innerHTML = scannedBooksHistory.map(book => `
-                <div style="background-color: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid #2e8b57; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <div style="flex: 1;">
-                            <strong style="color: #2e8b57; font-size: 14px;">${book.title}</strong>
-                            <p style="margin: 5px 0; color: #666; font-size: 13px;">by ${book.authors}</p>
-                            <p style="margin: 5px 0; color: #999; font-size: 12px;">ISBN: ${book.isbn}</p>
-                        </div>
-                    </div>
+                <div class="history-item">
+                    <strong style="color: #2e8b57; font-size: 14px;">${book.title}</strong>
+                    <p style="margin: 5px 0; color: #666; font-size: 13px;">by ${book.authors}</p>
+                    <p style="margin: 5px 0; color: #999; font-size: 12px;">ISBN: ${book.isbn}</p>
                 </div>
             `).join('');
         }
@@ -3779,16 +607,10 @@ function doPost(e) {
                 return;
             }
 
-            if (!API_URL) {
-                showAlert('Error: System not configured. Please contact administrator.', 'error');
-                return;
-            }
-
             const saveBtn = document.getElementById('saveToISBNListBtn');
-            saveBtn.classList.add('loading');
             saveBtn.disabled = true;
+            saveBtn.textContent = '💾 Saving...';
 
-            // Prepare data to send
             const dataToSend = {
                 action: 'addISBN',
                 isbn: currentScannedBook.isbn,
@@ -3799,51 +621,38 @@ function doPost(e) {
                 categories: currentScannedBook.categories
             };
 
-            console.log('=== SAVE TO ISBN_LIST DEBUG ===');
-            console.log('API_URL:', API_URL);
-            console.log('Data to send:', dataToSend);
+            console.log('Saving to ISBN_List:', dataToSend);
 
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain',
-                    },
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(dataToSend),
                     redirect: 'follow'
                 });
 
-                console.log('Response status:', response.status);
-                console.log('Response OK:', response.ok);
-
-                const responseText = await response.text();
-                console.log('Response text:', responseText);
-
-                const result = JSON.parse(responseText);
-                console.log('Parsed result:', result);
+                const result = await response.json();
+                console.log('Save result:', result);
 
                 if (result.success) {
                     showAlert('✅ Book saved to ISBN_List successfully!', 'success');
-                    console.log('✅ SUCCESS: Book saved with ISBN:', result.data?.isbn);
                     clearScannedBook();
                 } else {
-                    console.error('❌ FAILED:', result.message);
-                    showAlert('Failed to save: ' + result.message, 'error');
+                    showAlert('Failed: ' + result.message, 'error');
                 }
-
             } catch (error) {
-                console.error('❌ ERROR saving to ISBN_List:', error);
-                console.error('Error details:', {
-                    name: error.name,
-                    message: error.message,
-                    stack: error.stack
-                });
-                showAlert('Error saving book: ' + error.message + '. Check console for details.', 'error');
+                console.error('Error saving:', error);
+                showAlert('Error saving book', 'error');
             } finally {
-                saveBtn.classList.remove('loading');
                 saveBtn.disabled = false;
+                saveBtn.textContent = '💾 Save to ISBN List';
             }
         }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            checkIframePermissions();
+        });
     </script>
 </body>
 </html>
