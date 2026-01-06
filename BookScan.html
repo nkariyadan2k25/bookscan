@@ -214,6 +214,89 @@
             border-left: 5px solid #dc3545;
         }
 
+        /* ISBN List Grid View */
+        #isbnListSection {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #2e8b57;
+        }
+
+        #isbnListSection h3 {
+            color: #2e8b57;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .refresh-grid-btn {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .refresh-grid-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(33, 150, 243, 0.4);
+        }
+
+        .isbn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .isbn-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2e8b57;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .isbn-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .isbn-card-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #2e8b57;
+            margin-bottom: 8px;
+        }
+
+        .isbn-card-info {
+            font-size: 13px;
+            color: #666;
+            margin: 4px 0;
+        }
+
+        .isbn-card-isbn {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+            font-family: monospace;
+        }
+
+        .empty-grid-message {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -226,6 +309,10 @@
             .btn {
                 padding: 12px 30px;
                 font-size: 14px;
+            }
+
+            .isbn-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -306,7 +393,7 @@
             </div>
 
             <div style="margin-top: 25px; text-align: center;">
-                <button id="saveToISBNListBtn" class="btn btn-primary" onclick="saveToISBNList()">
+                <button id="saveToISBNListBtn" class="btn btn-primary" onclick="saveToISBNList()" style="display: none;">
                     💾 Save to ISBN List
                 </button>
                 <button class="btn btn-secondary" onclick="clearScannedBook()">
@@ -320,6 +407,17 @@
             <h3 style="color: #2e8b57; margin-bottom: 15px;">📋 Recently Scanned Books</h3>
             <div id="historyList">
                 <p style="text-align: center; color: #666; font-style: italic;">No books scanned yet</p>
+            </div>
+        </div>
+
+        <!-- ISBN List Grid View -->
+        <div id="isbnListSection">
+            <h3>
+                <span>📚 ISBN List - Saved Books</span>
+                <button class="refresh-grid-btn" onclick="loadISBNList()">🔄 Refresh</button>
+            </h3>
+            <div id="isbnGrid" class="isbn-grid">
+                <div class="empty-grid-message">Loading ISBN List...</div>
             </div>
         </div>
     </div>
@@ -536,6 +634,9 @@
                     displayScannedBook(currentScannedBook);
                     addToHistory(currentScannedBook);
                     showAlert('Book details retrieved!', 'success');
+
+                    // Auto-save to ISBN_List
+                    await saveToISBNList();
                 } else {
                     showAlert('No book details found for ISBN: ' + isbn, 'error');
                     currentScannedBook = {
@@ -603,13 +704,15 @@
         // Save to ISBN_List Sheet
         async function saveToISBNList() {
             if (!currentScannedBook) {
-                showAlert('No book data to save', 'error');
+                console.log('No book data to save');
                 return;
             }
 
             const saveBtn = document.getElementById('saveToISBNListBtn');
-            saveBtn.disabled = true;
-            saveBtn.textContent = '💾 Saving...';
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = '💾 Saving...';
+            }
 
             const dataToSend = {
                 action: 'addISBN',
@@ -636,22 +739,98 @@
 
                 if (result.success) {
                     showAlert('✅ Book saved to ISBN_List successfully!', 'success');
+                    // Auto-refresh the ISBN List grid view
+                    await loadISBNList();
                     clearScannedBook();
                 } else {
-                    showAlert('Failed: ' + result.message, 'error');
+                    // Show alert only if it's not a duplicate
+                    if (!result.message.includes('already exists')) {
+                        showAlert('Failed: ' + result.message, 'error');
+                    } else {
+                        console.log('Book already in ISBN_List:', result.message);
+                        // Still refresh to show it's there
+                        await loadISBNList();
+                    }
                 }
             } catch (error) {
                 console.error('Error saving:', error);
                 showAlert('Error saving book', 'error');
             } finally {
-                saveBtn.disabled = false;
-                saveBtn.textContent = '💾 Save to ISBN List';
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '💾 Save to ISBN List';
+                }
             }
+        }
+
+        // Load ISBN_List from Google Sheets
+        async function loadISBNList() {
+            const gridContainer = document.getElementById('isbnGrid');
+            gridContainer.innerHTML = '<div class="empty-grid-message">Loading...</div>';
+
+            const dataToSend = {
+                action: 'getISBNList'
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('ISBN List result:', result);
+
+                if (result.success && result.data && result.data.length > 0) {
+                    displayISBNGrid(result.data);
+                } else {
+                    gridContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
+                }
+            } catch (error) {
+                console.error('Error loading ISBN List:', error);
+                gridContainer.innerHTML = '<div class="empty-grid-message">Error loading ISBN List. Please try again.</div>';
+            }
+        }
+
+        // Display ISBN_List in grid view
+        function displayISBNGrid(books) {
+            const gridContainer = document.getElementById('isbnGrid');
+
+            if (!books || books.length === 0) {
+                gridContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
+                return;
+            }
+
+            // Sort books by most recent (reverse order)
+            const sortedBooks = [...books].reverse();
+
+            gridContainer.innerHTML = sortedBooks.map(book => `
+                <div class="isbn-card">
+                    <div class="isbn-card-title">${book.bookTitle || 'Unknown Title'}</div>
+                    <div class="isbn-card-info">
+                        <strong>Author:</strong> ${book.authors || 'N/A'}
+                    </div>
+                    <div class="isbn-card-info">
+                        <strong>Publisher:</strong> ${book.publisher || 'N/A'}
+                    </div>
+                    <div class="isbn-card-info">
+                        <strong>Published:</strong> ${book.publishedDate || 'N/A'}
+                    </div>
+                    ${book.categories ? `<div class="isbn-card-info">
+                        <strong>Categories:</strong> ${book.categories}
+                    </div>` : ''}
+                    <div class="isbn-card-isbn">📖 ISBN: ${book.isbn || 'N/A'}</div>
+                </div>
+            `).join('');
         }
 
         // Initialize on page load
         window.addEventListener('load', () => {
             checkIframePermissions();
+            // Load ISBN_List on page load
+            loadISBNList();
         });
     </script>
 </body>
