@@ -1,926 +1,1175 @@
-/**
- * Book Inventory Management System - Google Apps Script
- * This script handles form submissions and search queries for the Book Inventory application
- *
- * Google Sheet Structure Required:
- *
- * Book_Registry Sheet:
- * Column A: BookTitle
- * Column B: Author
- * Column C: Genre
- * Column D: Category
- * Column E: ContactPerson
- * Column F: ContactNumber
- * Column G: UnitNo
- * Column H: Language
- *
- * ISBN_List Sheet:
- * Column A: ISBN
- * Column B: BookTitle
- * Column C: Authors
- * Column D: Publisher
- * Column E: PublishedDate
- * Column F: Categories
- */
-
-// Configuration
-const SHEET_NAME = 'Book_Registry'; // Change this to match your sheet name if different
-const ISBN_SHEET_NAME = 'ISBN_List'; // Sheet for scanned ISBN books
-const SPREADSHEET_ID = '1MsfdeZrWk7dYU-D0jjRYmUPb8Q_eY1kCMsx4YXwW_i0';
-
-/**
- * Handle GET requests - Retrieve all books or search
- */
-function doGet(e) {
-  try {
-    const sheet = getSheet();
-
-    // Check if search parameter exists
-    if (e.parameter.search) {
-      return searchBooks(e.parameter.search, sheet);
-    }
-
-    // Return all books
-    return getAllBooks(sheet);
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error processing request: ' + error.message,
-      error: error.toString()
-    });
-  }
-}
-
-/**
- * Handle POST requests - Add or delete books
- */
-function doPost(e) {
-  try {
-    const params = JSON.parse(e.postData.contents);
-    const sheet = getSheet();
-
-    // Route to appropriate action
-    switch(params.action) {
-      case 'add':
-        return addBook(params, sheet);
-      case 'delete':
-        return deleteBook(params, sheet);
-      case 'update':
-        return updateBook(params, sheet);
-      case 'search':
-        return searchBooks(params.searchTerm, sheet);
-      case 'addISBN':
-        return addISBN(params);
-      case 'getISBNList':
-        return getISBNList();
-      case 'saveToBookRegistry':
-        return saveToBookRegistry(params, sheet);
-      case 'bulkSaveToBookRegistry':
-        return bulkSaveToBookRegistry(params, sheet);
-      default:
-        return createResponse({
-          success: false,
-          message: 'Unknown action: ' + params.action
-        });
-    }
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error processing request: ' + error.message,
-      error: error.toString()
-    });
-  }
-}
-
-/**
- * Get the active sheet
- */
-function getSheet() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  let sheet = ss.getSheetByName(SHEET_NAME);
-
-  // If sheet doesn't exist, try the first sheet
-  if (!sheet) {
-    sheet = ss.getSheets()[0];
-  }
-
-  return sheet;
-}
-
-/**
- * Get all books from the sheet
- */
-function getAllBooks(sheet) {
-  const data = sheet.getDataRange().getValues();
-
-  if (data.length <= 1) {
-    return createResponse({
-      success: true,
-      data: [],
-      count: 0,
-      message: 'No books found in inventory'
-    });
-  }
-
-  const headers = data[0];
-  const rows = data.slice(1);
-
-  // Convert rows to objects
-  const books = rows.map(row => {
-    let book = {};
-    headers.forEach((header, index) => {
-      book[header] = row[index];
-    });
-    return book;
-  }).filter(book => {
-    // Filter out empty rows
-    return book['BookTitle'] && book['BookTitle'].toString().trim() !== '';
-  });
-
-  return createResponse({
-    success: true,
-    data: books,
-    count: books.length,
-    message: `Retrieved ${books.length} books successfully`
-  });
-}
-
-/**
- * Add a new book to the inventory
- */
-function addBook(params, sheet) {
-  // Validate required fields
-  const requiredFields = ['bookTitle', 'author', 'genre', 'category', 'contactPerson', 'contactNumber', 'unitNo', 'language'];
-  const missingFields = requiredFields.filter(field => !params[field]);
-
-  if (missingFields.length > 0) {
-    return createResponse({
-      success: false,
-      message: 'Missing required fields: ' + missingFields.join(', ')
-    });
-  }
-
-  // Check if book with same title and author already exists
-  const existingBooks = getAllBooks(sheet);
-  if (existingBooks.success) {
-    const duplicate = existingBooks.data.find(book =>
-      book['BookTitle'].toString().toLowerCase() === params.bookTitle.toString().toLowerCase() &&
-      book['Author'].toString().toLowerCase() === params.author.toString().toLowerCase()
-    );
-
-    if (duplicate) {
-      return createResponse({
-        success: false,
-        message: 'A book with title "' + params.bookTitle + '" by "' + params.author + '" already exists'
-      });
-    }
-  }
-
-  // Append the row with book data (no timestamp)
-  sheet.appendRow([
-    params.bookTitle,    // Column A: BookTitle
-    params.author,       // Column B: Author
-    params.genre,        // Column C: Genre
-    params.category,     // Column D: Category
-    params.contactPerson,// Column E: ContactPerson
-    params.contactNumber,// Column F: ContactNumber
-    params.unitNo,       // Column G: UnitNo
-    params.language      // Column H: Language
-  ]);
-
-  return createResponse({
-    success: true,
-    message: 'Book "' + params.bookTitle + '" added successfully',
-    data: {
-      bookTitle: params.bookTitle,
-      author: params.author
-    }
-  });
-}
-
-/**
- * Delete a book from the inventory
- */
-function deleteBook(params, sheet) {
-  if (!params.bookTitle || !params.author) {
-    return createResponse({
-      success: false,
-      message: 'Book Title and Author are required for deletion'
-    });
-  }
-
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const bookTitleColumnIndex = headers.indexOf('BookTitle');
-  const authorColumnIndex = headers.indexOf('Author');
-
-  if (bookTitleColumnIndex === -1 || authorColumnIndex === -1) {
-    return createResponse({
-      success: false,
-      message: 'Required columns not found in sheet'
-    });
-  }
-
-  // Find the row to delete (start from row 2, skip header)
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][bookTitleColumnIndex].toString().toLowerCase() === params.bookTitle.toString().toLowerCase() &&
-        data[i][authorColumnIndex].toString().toLowerCase() === params.author.toString().toLowerCase()) {
-
-      // Log the deletion to Delete_Log sheet before deleting
-      try {
-        logDeletion(data[i], headers, sheet.getParent());
-      } catch (logError) {
-        Logger.log('Error logging deletion: ' + logError.message);
-        // Continue with deletion even if logging fails
-      }
-
-      sheet.deleteRow(i + 1); // +1 because sheets are 1-indexed
-      return createResponse({
-        success: true,
-        message: 'Book "' + params.bookTitle + '" by "' + params.author + '" deleted successfully'
-      });
-    }
-  }
-
-  return createResponse({
-    success: false,
-    message: 'Book "' + params.bookTitle + '" by "' + params.author + '" not found'
-  });
-}
-
-/**
- * Log deleted book to Delete_Log sheet
- */
-function logDeletion(bookRow, headers, spreadsheet) {
-  // Get or create Delete_Log sheet
-  let deleteLogSheet = spreadsheet.getSheetByName('Delete_Log');
-
-  if (!deleteLogSheet) {
-    // Create the sheet if it doesn't exist
-    deleteLogSheet = spreadsheet.insertSheet('Delete_Log');
-
-    // Add headers to the new sheet
-    const logHeaders = headers.concat(['DeletedTimestamp']);
-    deleteLogSheet.appendRow(logHeaders);
-
-    // Format the header row
-    const headerRange = deleteLogSheet.getRange(1, 1, 1, logHeaders.length);
-    headerRange.setBackground('#8b7355');
-    headerRange.setFontColor('#f5f1e8');
-    headerRange.setFontWeight('bold');
-  }
-
-  // Add timestamp to the book data
-  const timestamp = new Date();
-  const formattedTimestamp = Utilities.formatDate(timestamp, Session.getScriptTimeZone(), 'MM-dd-yyyy HH:mm:ss');
-
-  // Append the deleted book data with timestamp
-  const logData = bookRow.concat([formattedTimestamp]);
-  deleteLogSheet.appendRow(logData);
-}
-
-/**
- * Update an existing book
- */
-function updateBook(params, sheet) {
-  if (!params.bookTitle || !params.author) {
-    return createResponse({
-      success: false,
-      message: 'Book Title and Author are required for update'
-    });
-  }
-
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const bookTitleColumnIndex = headers.indexOf('BookTitle');
-  const authorColumnIndex = headers.indexOf('Author');
-
-  if (bookTitleColumnIndex === -1 || authorColumnIndex === -1) {
-    return createResponse({
-      success: false,
-      message: 'Required columns not found in sheet'
-    });
-  }
-
-  // Find the row to update
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][bookTitleColumnIndex].toString().toLowerCase() === params.bookTitle.toString().toLowerCase() &&
-        data[i][authorColumnIndex].toString().toLowerCase() === params.author.toString().toLowerCase()) {
-      const rowNumber = i + 1;
-
-      // Update the fields that are provided
-      if (params.genre !== undefined) {
-        const genreIndex = headers.indexOf('Genre');
-        if (genreIndex !== -1) sheet.getRange(rowNumber, genreIndex + 1).setValue(params.genre);
-      }
-      if (params.category !== undefined) {
-        const categoryIndex = headers.indexOf('Category');
-        if (categoryIndex !== -1) sheet.getRange(rowNumber, categoryIndex + 1).setValue(params.category);
-      }
-      if (params.contactPerson !== undefined) {
-        const contactPersonIndex = headers.indexOf('ContactPerson');
-        if (contactPersonIndex !== -1) sheet.getRange(rowNumber, contactPersonIndex + 1).setValue(params.contactPerson);
-      }
-      if (params.contactNumber !== undefined) {
-        const contactNumberIndex = headers.indexOf('ContactNumber');
-        if (contactNumberIndex !== -1) sheet.getRange(rowNumber, contactNumberIndex + 1).setValue(params.contactNumber);
-      }
-      if (params.unitNo !== undefined) {
-        const unitNoIndex = headers.indexOf('UnitNo');
-        if (unitNoIndex !== -1) sheet.getRange(rowNumber, unitNoIndex + 1).setValue(params.unitNo);
-      }
-      if (params.language !== undefined) {
-        const languageIndex = headers.indexOf('Language');
-        if (languageIndex !== -1) sheet.getRange(rowNumber, languageIndex + 1).setValue(params.language);
-      }
-
-      return createResponse({
-        success: true,
-        message: 'Book "' + params.bookTitle + '" updated successfully'
-      });
-    }
-  }
-
-  return createResponse({
-    success: false,
-    message: 'Book "' + params.bookTitle + '" by "' + params.author + '" not found'
-  });
-}
-
-/**
- * Search books by multiple criteria
- */
-function searchBooks(searchTerm, sheet) {
-  if (!searchTerm || searchTerm.trim() === '') {
-    return createResponse({
-      success: false,
-      message: 'Search term is required'
-    });
-  }
-
-  const allBooksResponse = getAllBooks(sheet);
-
-  if (!allBooksResponse.success || allBooksResponse.data.length === 0) {
-    return createResponse({
-      success: true,
-      data: [],
-      count: 0,
-      message: 'No books found in inventory'
-    });
-  }
-
-  const searchWords = searchTerm.toLowerCase().trim().split(/\s+/);
-
-  // Filter books that match all search words in any field
-  const filteredBooks = allBooksResponse.data.filter(book => {
-    const searchableText = [
-      book['BookTitle'],
-      book['Author'],
-      book['Genre'],
-      book['Category'],
-      book['ContactPerson'],
-      book['ContactNumber'],
-      book['UnitNo'],
-      book['Language']
-    ].join(' ').toLowerCase();
-
-    return searchWords.every(word => searchableText.includes(word));
-  });
-
-  return createResponse({
-    success: true,
-    data: filteredBooks,
-    count: filteredBooks.length,
-    searchTerm: searchTerm,
-    message: `Found ${filteredBooks.length} book(s) matching "${searchTerm}"`
-  });
-}
-
-/**
- * Get statistics about the inventory
- */
-function getStatistics() {
-  try {
-    const sheet = getSheet();
-    const allBooksResponse = getAllBooks(sheet);
-
-    if (!allBooksResponse.success) {
-      return createResponse({
-        success: false,
-        message: 'Failed to retrieve books for statistics'
-      });
-    }
-
-    const books = allBooksResponse.data;
-
-    // Calculate statistics
-    const stats = {
-      totalBooks: books.length,
-      uniqueAuthors: new Set(),
-      uniqueGenres: new Set(),
-      uniqueCategories: new Set(),
-      uniqueContactPersons: new Set(),
-      uniqueUnits: new Set()
-    };
-
-    books.forEach(book => {
-      if (book['Author']) stats.uniqueAuthors.add(book['Author'].trim());
-      if (book['Genre']) stats.uniqueGenres.add(book['Genre'].trim());
-      if (book['Category']) stats.uniqueCategories.add(book['Category'].trim());
-      if (book['ContactPerson']) stats.uniqueContactPersons.add(book['ContactPerson'].trim());
-      if (book['UnitNo']) stats.uniqueUnits.add(book['UnitNo'].trim());
-    });
-
-    stats.uniqueAuthorsCount = stats.uniqueAuthors.size;
-    stats.uniqueGenresCount = stats.uniqueGenres.size;
-    stats.uniqueCategoriesCount = stats.uniqueCategories.size;
-    stats.uniqueContactPersonsCount = stats.uniqueContactPersons.size;
-    stats.uniqueUnitsCount = stats.uniqueUnits.size;
-
-    // Convert sets to arrays for JSON
-    stats.uniqueAuthors = Array.from(stats.uniqueAuthors);
-    stats.uniqueGenres = Array.from(stats.uniqueGenres);
-    stats.uniqueCategories = Array.from(stats.uniqueCategories);
-    stats.uniqueContactPersons = Array.from(stats.uniqueContactPersons);
-    stats.uniqueUnits = Array.from(stats.uniqueUnits);
-
-    return createResponse({
-      success: true,
-      data: stats,
-      message: 'Statistics retrieved successfully'
-    });
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error calculating statistics: ' + error.message
-    });
-  }
-}
-
-/**
- * Get books by category
- */
-function getBooksByCategory(category) {
-  try {
-    const sheet = getSheet();
-    const allBooksResponse = getAllBooks(sheet);
-
-    if (!allBooksResponse.success) {
-      return createResponse({
-        success: false,
-        message: 'Failed to retrieve books'
-      });
-    }
-
-    const filteredBooks = allBooksResponse.data.filter(book =>
-      book['Category'] && book['Category'].toString().toLowerCase() === category.toLowerCase()
-    );
-
-    return createResponse({
-      success: true,
-      data: filteredBooks,
-      count: filteredBooks.length,
-      message: `Found ${filteredBooks.length} books in category "${category}"`
-    });
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error retrieving books by category: ' + error.message
-    });
-  }
-}
-
-/**
- * Get books by genre
- */
-function getBooksByGenre(genre) {
-  try {
-    const sheet = getSheet();
-    const allBooksResponse = getAllBooks(sheet);
-
-    if (!allBooksResponse.success) {
-      return createResponse({
-        success: false,
-        message: 'Failed to retrieve books'
-      });
-    }
-
-    const filteredBooks = allBooksResponse.data.filter(book =>
-      book['Genre'] && book['Genre'].toString().toLowerCase() === genre.toLowerCase()
-    );
-
-    return createResponse({
-      success: true,
-      data: filteredBooks,
-      count: filteredBooks.length,
-      message: `Found ${filteredBooks.length} books in genre "${genre}"`
-    });
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error retrieving books by genre: ' + error.message
-    });
-  }
-}
-
-/**
- * Get books by contact person
- */
-function getBooksByContact(contactPerson) {
-  try {
-    const sheet = getSheet();
-    const allBooksResponse = getAllBooks(sheet);
-
-    if (!allBooksResponse.success) {
-      return createResponse({
-        success: false,
-        message: 'Failed to retrieve books'
-      });
-    }
-
-    const filteredBooks = allBooksResponse.data.filter(book =>
-      book['ContactPerson'] && book['ContactPerson'].toString().toLowerCase().includes(contactPerson.toLowerCase())
-    );
-
-    return createResponse({
-      success: true,
-      data: filteredBooks,
-      count: filteredBooks.length,
-      message: `Found ${filteredBooks.length} books for contact "${contactPerson}"`
-    });
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error retrieving books by contact: ' + error.message
-    });
-  }
-}
-
-/**
- * Format timestamp in MM-DD-YY HH:mm:ss format
- */
-function formatTimestamp(date) {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-
-  return `${month}-${day}-${year} ${hours}:${minutes}:${seconds}`;
-}
-
-/**
- * Create a standardized JSON response
- */
-function createResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * Add ISBN scanned book to ISBN_List sheet
- */
-function addISBN(params) {
-  try {
-    // Validate required fields
-    const requiredFields = ['isbn', 'bookTitle'];
-    const missingFields = requiredFields.filter(field => !params[field]);
-
-    if (missingFields.length > 0) {
-      return createResponse({
-        success: false,
-        message: 'Missing required fields: ' + missingFields.join(', ')
-      });
-    }
-
-    // Get or create ISBN_List sheet
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    let isbnSheet = ss.getSheetByName(ISBN_SHEET_NAME);
-
-    if (!isbnSheet) {
-      // Create the sheet if it doesn't exist
-      isbnSheet = ss.insertSheet(ISBN_SHEET_NAME);
-
-      // Add headers
-      const headers = ['ISBN', 'BookTitle', 'Authors', 'Publisher', 'PublishedDate', 'Categories'];
-      isbnSheet.appendRow(headers);
-
-      // Format header row
-      const headerRange = isbnSheet.getRange(1, 1, 1, headers.length);
-      headerRange.setBackground('#2e8b57');
-      headerRange.setFontColor('#f5f1e8');
-      headerRange.setFontWeight('bold');
-    }
-
-    // Check if ISBN already exists
-    const data = isbnSheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0].toString() === params.isbn.toString()) {
-        return createResponse({
-          success: false,
-          message: 'ISBN ' + params.isbn + ' already exists in ISBN_List'
-        });
-      }
-    }
-
-    // Append the ISBN data
-    isbnSheet.appendRow([
-      params.isbn,           // Column A: ISBN
-      params.bookTitle,      // Column B: BookTitle
-      params.authors || '',  // Column C: Authors
-      params.publisher || '',// Column D: Publisher
-      params.publishedDate || '', // Column E: PublishedDate
-      params.categories || ''     // Column F: Categories
-    ]);
-
-    return createResponse({
-      success: true,
-      message: 'Book with ISBN ' + params.isbn + ' added to ISBN_List successfully',
-      data: {
-        isbn: params.isbn,
-        bookTitle: params.bookTitle
-      }
-    });
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error adding ISBN: ' + error.message,
-      error: error.toString()
-    });
-  }
-}
-
-/**
- * Get all ISBN_List entries
- */
-function getISBNList() {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    let isbnSheet = ss.getSheetByName(ISBN_SHEET_NAME);
-
-    // If sheet doesn't exist, return empty list
-    if (!isbnSheet) {
-      return createResponse({
-        success: true,
-        message: 'ISBN_List sheet does not exist yet',
-        data: []
-      });
-    }
-
-    // Get all data from sheet
-    const dataRange = isbnSheet.getDataRange();
-    const values = dataRange.getValues();
-
-    // If only headers or empty, return empty list
-    if (values.length <= 1) {
-      return createResponse({
-        success: true,
-        message: 'ISBN_List is empty',
-        data: []
-      });
-    }
-
-    // Convert to array of objects (skip header row)
-    const headers = values[0];
-    const books = [];
-
-    for (let i = 1; i < values.length; i++) {
-      const row = values[i];
-      books.push({
-        isbn: row[0] || '',
-        bookTitle: row[1] || '',
-        authors: row[2] || '',
-        publisher: row[3] || '',
-        publishedDate: row[4] || '',
-        categories: row[5] || ''
-      });
-    }
-
-    return createResponse({
-      success: true,
-      message: 'Retrieved ' + books.length + ' books from ISBN_List',
-      data: books
-    });
-
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error retrieving ISBN_List: ' + error.message,
-      error: error.toString()
-    });
-  }
-}
-
-/**
- * Save book from ISBN_List to Book_Registry and remove from ISBN_List
- */
-function saveToBookRegistry(params, sheet) {
-  try {
-    // Validate required fields
-    const requiredFields = ['isbn', 'bookTitle', 'author', 'contactPerson', 'contactNumber', 'unitNo'];
-    const missingFields = requiredFields.filter(field => !params[field]);
-
-    if (missingFields.length > 0) {
-      return createResponse({
-        success: false,
-        message: 'Missing required fields: ' + missingFields.join(', ')
-      });
-    }
-
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-    // Add to Book_Registry
-    const registrySheet = sheet || ss.getSheetByName(SHEET_NAME);
-    if (!registrySheet) {
-      return createResponse({
-        success: false,
-        message: 'Book_Registry sheet not found'
-      });
-    }
-
-    // Check if book already exists in Book_Registry
-    const registryData = registrySheet.getDataRange().getValues();
-    for (let i = 1; i < registryData.length; i++) {
-      if (registryData[i][0].toString().toLowerCase() === params.bookTitle.toString().toLowerCase()) {
-        return createResponse({
-          success: false,
-          message: 'Book "' + params.bookTitle + '" already exists in Book Registry'
-        });
-      }
-    }
-
-    // Append to Book_Registry
-    // Columns: BookTitle, Author, Genre, Category, ContactPerson, ContactNumber, UnitNo, Language
-    registrySheet.appendRow([
-      params.bookTitle,           // Column A: BookTitle
-      params.author,              // Column B: Author
-      params.genre || '',         // Column C: Genre
-      params.category || '',      // Column D: Category
-      params.contactPerson,       // Column E: ContactPerson
-      params.contactNumber,       // Column F: ContactNumber
-      params.unitNo,              // Column G: UnitNo
-      params.language || ''       // Column H: Language
-    ]);
-
-    // Remove from ISBN_List
-    const isbnSheet = ss.getSheetByName(ISBN_SHEET_NAME);
-    if (isbnSheet) {
-      const isbnData = isbnSheet.getDataRange().getValues();
-      for (let i = 1; i < isbnData.length; i++) {
-        if (isbnData[i][0].toString() === params.isbn.toString()) {
-          isbnSheet.deleteRow(i + 1);
-          break;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Camera permissions -->
+    <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(self)">
+    <meta http-equiv="Feature-Policy" content="camera 'self'; microphone 'self'">
+
+    <title>Book Barcode Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      }
-    }
 
-    return createResponse({
-      success: true,
-      message: 'Book "' + params.bookTitle + '" saved to Book Registry and removed from ISBN List',
-      data: {
-        bookTitle: params.bookTitle,
-        isbn: params.isbn
-      }
-    });
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error saving to Book Registry: ' + error.message,
-      error: error.toString()
-    });
-  }
-}
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
 
-/**
- * Bulk save all books from ISBN_List to Book_Registry and clear ISBN_List
- */
-function bulkSaveToBookRegistry(params, sheet) {
-  try {
-    // Validate required fields
-    if (!params.books || !Array.isArray(params.books) || params.books.length === 0) {
-      return createResponse({
-        success: false,
-        message: 'No books provided for bulk save'
-      });
-    }
+        h1 {
+            color: #2e8b57;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
 
-    const requiredFields = ['contactPerson', 'contactNumber', 'unitNo'];
-    const missingFields = requiredFields.filter(field => !params[field]);
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
 
-    if (missingFields.length > 0) {
-      return createResponse({
-        success: false,
-        message: 'Missing required fields: ' + missingFields.join(', ')
-      });
-    }
+        .info-box {
+            background-color: #e7f3ff;
+            padding: 18px;
+            border-left: 5px solid #2196F3;
+            margin-bottom: 20px;
+            border-radius: 6px;
+        }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const registrySheet = sheet || ss.getSheetByName(SHEET_NAME);
+        .warning-box {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(238, 90, 111, 0.3);
+            border: 3px solid #ff5252;
+            display: none;
+        }
 
-    if (!registrySheet) {
-      return createResponse({
-        success: false,
-        message: 'Book_Registry sheet not found'
-      });
-    }
+        .warning-box h2 {
+            color: white;
+            margin-top: 0;
+            font-size: 24px;
+            text-align: center;
+        }
 
-    // Get existing data to check for duplicates
-    const registryData = registrySheet.getDataRange().getValues();
-    const existingTitles = new Set();
-    for (let i = 1; i < registryData.length; i++) {
-      existingTitles.add(registryData[i][0].toString().toLowerCase());
-    }
+        .warning-box p {
+            color: white;
+            margin: 15px 0;
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.6;
+        }
 
-    let savedCount = 0;
-    let skippedCount = 0;
-    const skippedBooks = [];
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
 
-    // Process each book
-    params.books.forEach(book => {
-      const bookTitleLower = (book.bookTitle || '').toString().toLowerCase();
+        .btn-primary {
+            background: linear-gradient(135deg, #2e8b57 0%, #3cb371 100%);
+            color: white;
+        }
 
-      // Skip if already exists
-      if (existingTitles.has(bookTitleLower)) {
-        skippedCount++;
-        skippedBooks.push(book.bookTitle);
-        return;
-      }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(46, 139, 87, 0.4);
+        }
 
-      // Add to Book_Registry
-      // Columns: BookTitle, Author, Genre, Category, ContactPerson, ContactNumber, UnitNo, Language
-      registrySheet.appendRow([
-        book.bookTitle || '',        // Column A: BookTitle
-        book.author || '',            // Column B: Author
-        book.genre || '',             // Column C: Genre
-        book.category || '',          // Column D: Category
-        params.contactPerson,         // Column E: ContactPerson
-        params.contactNumber,         // Column F: ContactNumber
-        params.unitNo,                // Column G: UnitNo
-        params.language || ''         // Column H: Language
-      ]);
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
 
-      savedCount++;
-      existingTitles.add(bookTitleLower); // Add to set to prevent duplicates within the same batch
-    });
+        .btn-warning {
+            background: white;
+            color: #ff5252;
+            padding: 20px 50px;
+            font-size: 20px;
+        }
 
-    // Clear the entire ISBN_List sheet
-    const isbnSheet = ss.getSheetByName(ISBN_SHEET_NAME);
-    if (isbnSheet) {
-      const lastRow = isbnSheet.getLastRow();
-      if (lastRow > 1) {
-        // Delete all rows except the header
-        isbnSheet.deleteRows(2, lastRow - 1);
-      }
-    }
+        .btn-warning:hover {
+            transform: scale(1.05);
+        }
 
-    let message = `Successfully saved ${savedCount} book(s) to Book Registry.`;
-    if (skippedCount > 0) {
-      message += ` ${skippedCount} book(s) were skipped (already exist).`;
-    }
-    message += ' ISBN_List has been cleared.';
+        #cameraViewContainer {
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: none;
+        }
 
-    return createResponse({
-      success: true,
-      message: message,
-      data: {
-        savedCount: savedCount,
-        skippedCount: skippedCount,
-        skippedBooks: skippedBooks
-      }
-    });
+        #reader {
+            width: 100%;
+            border: 2px solid #2e8b57;
+            border-radius: 10px;
+        }
 
-  } catch (error) {
-    return createResponse({
-      success: false,
-      message: 'Error bulk saving to Book Registry: ' + error.message,
-      error: error.toString()
-    });
-  }
-}
+        #scanStatus {
+            margin-top: 10px;
+            background: #e7f3ff;
+            color: #2196F3;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 14px;
+            border-left: 4px solid #2196F3;
+        }
 
-/**
- * Test function - Run this to verify the script works
- */
-function testScript() {
-  Logger.log('Testing Book Inventory Script...');
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-  // Test getting all books
-  const allBooks = getAllBooks(getSheet());
-  Logger.log('Get All Books:');
-  Logger.log(allBooks.getContent());
+        #scannedBookDetails {
+            display: none;
+            background-color: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #2e8b57;
+            margin-bottom: 20px;
+        }
 
-  // Test statistics
-  const stats = getStatistics();
-  Logger.log('Statistics:');
-  Logger.log(stats.getContent());
-}
+        #scannedBookDetails h3 {
+            color: #2e8b57;
+            margin-bottom: 20px;
+        }
+
+        .detail-item {
+            margin-bottom: 15px;
+        }
+
+        .detail-item strong {
+            color: #5d4e37;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .detail-item p {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        #historyList {
+            display: grid;
+            gap: 10px;
+        }
+
+        .history-item {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2e8b57;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10000;
+            max-width: 400px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid #28a745;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 5px solid #dc3545;
+        }
+
+        /* ISBN List Section */
+        #isbnListSection {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #2e8b57;
+        }
+
+        #isbnListSection h3 {
+            color: #2e8b57;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .refresh-grid-btn {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .refresh-grid-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(33, 150, 243, 0.4);
+        }
+
+        /* Table Styles */
+        .isbn-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .isbn-table thead {
+            background: linear-gradient(135deg, #2e8b57 0%, #3cb371 100%);
+            color: white;
+        }
+
+        .isbn-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .isbn-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .isbn-table tbody tr {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .isbn-table tbody tr:hover {
+            background: #f8f9fa;
+            transform: scale(1.01);
+        }
+
+        .isbn-table tbody tr {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .isbn-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Slide Button Container */
+        .slide-button-cell {
+            padding: 8px !important;
+        }
+
+        .slide-container {
+            position: relative;
+            width: 320px;
+            height: 60px;
+            background: linear-gradient(180deg, #e8e8e8 0%, #d0d0d0 100%);
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.25), 0 1px 0 rgba(255,255,255,0.5);
+            touch-action: none;
+            user-select: none;
+            border: 1px solid #c0c0c0;
+        }
+
+        .slide-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(135deg, #2e8b57 0%, #3cb371 100%);
+            border-radius: 25px;
+            transition: width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        .slide-button {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+            border-radius: 50%;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.8);
+            cursor: grab;
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            z-index: 2;
+            border: 1px solid #d0d0d0;
+        }
+
+        .slide-button:active {
+            cursor: grabbing;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .slide-text {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            pointer-events: none;
+            z-index: 1;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+        }
+
+        .slide-container.unlocked .slide-button {
+            left: calc(100% - 55px);
+            background: linear-gradient(180deg, #5cb85c 0%, #4caf50 100%);
+            box-shadow: 0 3px 10px rgba(76, 175, 80, 0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+
+        .slide-container.unlocked .slide-background {
+            width: 100%;
+        }
+
+        .slide-container.unlocked .slide-text {
+            color: white;
+        }
+
+        .empty-grid-message {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .btn {
+                padding: 12px 30px;
+                font-size: 14px;
+            }
+
+            .isbn-table {
+                font-size: 12px;
+            }
+
+            .isbn-table th,
+            .isbn-table td {
+                padding: 10px 8px;
+            }
+
+            #mainSlideButton {
+                width: 280px;
+                height: 50px;
+            }
+
+            #mainSlideButton .slide-button {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            #mainSlideButton .slide-text {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📷 Book Barcode Scanner</h1>
+        <p class="subtitle">Scan ISBN barcodes to automatically retrieve book information</p>
+
+        <!-- Info Box -->
+        <div class="info-box">
+            <strong>📖 How to use:</strong> Click "Start Scanner" below to activate your camera. Point it at a book's ISBN barcode. Once scanned, book details will be fetched automatically from Google Books.
+        </div>
+
+        <!-- Iframe Warning -->
+        <div id="iframeWarning" class="warning-box">
+            <h2>⚠️ Camera Access Blocked</h2>
+            <p>
+                This page is embedded and camera access is blocked.<br>
+                <strong>Click the button below to use the scanner:</strong>
+            </p>
+            <div style="text-align: center; margin: 20px 0;">
+                <button onclick="openInNewTab()" class="btn btn-warning">
+                    📷 Open Scanner (Click Here!)
+                </button>
+            </div>
+            <p style="font-size: 14px; opacity: 0.9;">
+                This will open the scanner in a new tab where your camera will work.
+            </p>
+        </div>
+
+        <!-- Camera View -->
+        <div id="cameraViewContainer">
+            <div id="reader"></div>
+            <div id="scanStatus">Ready to scan</div>
+        </div>
+
+        <!-- Scanner Controls -->
+        <div class="controls">
+            <button id="startScanBtn" class="btn btn-primary" onclick="startScanner()">
+                📷 Start Scanner
+            </button>
+            <button id="stopScanBtn" class="btn btn-secondary" onclick="stopScanner()" style="display: none;">
+                ⏹️ Stop Scanner
+            </button>
+        </div>
+
+        <!-- Scanned Book Details -->
+        <div id="scannedBookDetails">
+            <h3>📚 Scanned Book Details</h3>
+            <div class="detail-item">
+                <strong>ISBN:</strong>
+                <p id="scannedISBN"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Book Title:</strong>
+                <p id="scannedBookTitle" style="font-weight: 600;"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Author(s):</strong>
+                <p id="scannedAuthor"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Publisher:</strong>
+                <p id="scannedPublisher"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Published Date:</strong>
+                <p id="scannedPublishedDate"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Categories:</strong>
+                <p id="scannedCategories"></p>
+            </div>
+            <div class="detail-item">
+                <strong>Description:</strong>
+                <p id="scannedDescription" style="font-size: 14px; line-height: 1.6; color: #666;"></p>
+            </div>
+
+            <div style="margin-top: 25px; text-align: center;">
+                <button id="saveToISBNListBtn" class="btn btn-primary" onclick="saveToISBNList()" style="display: none;">
+                    💾 Save to ISBN List
+                </button>
+                <button class="btn btn-secondary" onclick="clearScannedBook()">
+                    🔄 Scan Another
+                </button>
+            </div>
+        </div>
+
+        <!-- ISBN Scanned Books Section -->
+        <div id="isbnListSection">
+            <h3>
+                <span>📚 ISBN Scanned Books</span>
+                <button class="refresh-grid-btn" onclick="loadISBNList()">🔄 Refresh</button>
+            </h3>
+
+            <!-- Form for Book Registry Details -->
+            <div id="registryForm" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #2e8b57;">
+                <h4 style="color: #2e8b57; margin-bottom: 15px;">📝 Book Registry Information</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #5d4e37;">
+                            Contact Person <span style="color: red;">*</span>
+                        </label>
+                        <input type="text" id="contactPerson" placeholder="Enter contact person name"
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #5d4e37;">
+                            Contact Number <span style="color: red;">*</span>
+                        </label>
+                        <input type="tel" id="contactNumber" placeholder="Enter contact number"
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #5d4e37;">
+                            Unit No <span style="color: red;">*</span>
+                        </label>
+                        <input type="text" id="unitNo" placeholder="Enter unit number"
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    </div>
+                </div>
+                <p style="margin-top: 10px; font-size: 12px; color: #666; font-style: italic;">
+                    Fill in these details before sliding to save to Book Registry
+                </p>
+            </div>
+
+            <!-- Table View -->
+            <div id="isbnTableContainer" style="overflow-x: auto;">
+                <div class="empty-grid-message">Loading ISBN List...</div>
+            </div>
+
+            <!-- iPhone-style Slide to Save Button -->
+            <div id="slideToSaveSection" style="margin-top: 30px; text-align: center; display: none;">
+                <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
+                    <strong id="bookCount">0</strong> book(s) ready to save. Slide to save all to Book Registry.
+                </p>
+                <div style="display: flex; justify-content: center;">
+                    <div class="slide-container" id="mainSlideButton">
+                        <div class="slide-background"></div>
+                        <div class="slide-text">Slide to Save All →</div>
+                        <div class="slide-button">→</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert -->
+    <div id="alertBox" class="alert"></div>
+
+    <script>
+        // Configuration
+        const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbytd5eKdlkBLJ9nxS2jx1C5A4pFNdkISnJoPwt2VFu7jzUpMYOa_F6oeZh1o4GY-pOO_w/exec';
+        let API_URL = localStorage.getItem('apiUrl') || DEFAULT_API_URL;
+
+        let html5QrcodeScanner = null;
+        let currentScannedBook = null;
+        let isScannerActive = false;
+
+        // Check if running in iframe
+        function isInIframe() {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        // Open in new tab
+        function openInNewTab() {
+            const currentUrl = window.location.href;
+            window.open(currentUrl, '_blank');
+        }
+
+        // Show alert
+        function showAlert(message, type) {
+            const alertEl = document.getElementById('alertBox');
+            alertEl.textContent = message;
+            alertEl.className = 'alert alert-' + type;
+            alertEl.style.display = 'block';
+
+            setTimeout(() => {
+                alertEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Check iframe permissions on load
+        async function checkIframePermissions() {
+            console.log('=== IFRAME PERMISSION CHECK ===');
+
+            if (!isInIframe()) {
+                console.log('✅ Not in iframe - camera should work normally');
+                document.getElementById('iframeWarning').style.display = 'none';
+                return;
+            }
+
+            console.log('⚠️ Running in iframe - checking camera...');
+            document.getElementById('iframeWarning').style.display = 'block';
+
+            try {
+                const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                testStream.getTracks().forEach(track => track.stop());
+                console.log('✅ Camera IS accessible in iframe!');
+                document.getElementById('iframeWarning').style.display = 'none';
+            } catch (error) {
+                console.log('❌ Camera NOT accessible in iframe');
+                document.getElementById('iframeWarning').style.display = 'block';
+            }
+        }
+
+        // Check camera permissions
+        async function checkCameraPermissions() {
+            console.log('=== CAMERA PERMISSION CHECK ===');
+
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                throw new Error('Camera access requires HTTPS.');
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Your browser does not support camera access.');
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                stream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch (error) {
+                if (error.name === 'NotAllowedError') {
+                    throw new Error('Camera permission denied. Please click "Allow" when asked.');
+                }
+                throw error;
+            }
+        }
+
+        // Start Scanner
+        async function startScanner() {
+            try {
+                document.getElementById('cameraViewContainer').style.display = 'block';
+                document.getElementById('scanStatus').textContent = 'Checking camera permissions...';
+
+                await checkCameraPermissions();
+                document.getElementById('iframeWarning').style.display = 'none';
+
+                document.getElementById('scanStatus').textContent = 'Initializing camera...';
+
+                if (!html5QrcodeScanner) {
+                    html5QrcodeScanner = new Html5Qrcode("reader");
+                }
+
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 300, height: 150 },
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E
+                    ]
+                };
+
+                const onScanSuccess = async (decodedText) => {
+                    console.log('Scanned barcode:', decodedText);
+                    document.getElementById('scanStatus').textContent = `ISBN detected: ${decodedText}. Fetching book details...`;
+                    document.getElementById('scanStatus').style.background = '#d4edda';
+                    document.getElementById('scanStatus').style.color = '#155724';
+                    document.getElementById('scanStatus').style.borderLeft = '4px solid #28a745';
+
+                    await stopScanner();
+                    await fetchBookDetails(decodedText);
+                };
+
+                const onScanFailure = (error) => {
+                    // Ignore - fires when no barcode detected
+                };
+
+                try {
+                    await html5QrcodeScanner.start(
+                        { facingMode: "environment" },
+                        config,
+                        onScanSuccess,
+                        onScanFailure
+                    );
+                } catch (error) {
+                    await html5QrcodeScanner.start(
+                        { facingMode: "user" },
+                        config,
+                        onScanSuccess,
+                        onScanFailure
+                    );
+                }
+
+                isScannerActive = true;
+                document.getElementById('scanStatus').textContent = 'Point camera at ISBN barcode...';
+                document.getElementById('scanStatus').style.background = '#e7f3ff';
+                document.getElementById('scanStatus').style.color = '#2196F3';
+                document.getElementById('scanStatus').style.borderLeft = '4px solid #2196F3';
+                document.getElementById('startScanBtn').style.display = 'none';
+                document.getElementById('stopScanBtn').style.display = 'inline-block';
+
+                showAlert('Scanner activated!', 'success');
+            } catch (error) {
+                console.error('❌ Error starting scanner:', error);
+
+                if (isInIframe() && (error.name === 'NotAllowedError' || error.message.includes('denied'))) {
+                    document.getElementById('iframeWarning').style.display = 'block';
+                }
+
+                showAlert(error.message || 'Failed to start camera', 'error');
+                document.getElementById('cameraViewContainer').style.display = 'none';
+                isScannerActive = false;
+            }
+        }
+
+        // Stop Scanner
+        async function stopScanner() {
+            try {
+                if (html5QrcodeScanner && isScannerActive) {
+                    await html5QrcodeScanner.stop();
+                    isScannerActive = false;
+                }
+
+                document.getElementById('cameraViewContainer').style.display = 'none';
+                document.getElementById('startScanBtn').style.display = 'inline-block';
+                document.getElementById('stopScanBtn').style.display = 'none';
+                document.getElementById('scanStatus').textContent = 'Ready to scan';
+                document.getElementById('scanStatus').style.background = '#e7f3ff';
+                document.getElementById('scanStatus').style.color = '#2196F3';
+            } catch (error) {
+                console.error('Error stopping scanner:', error);
+            }
+        }
+
+        // Fetch Book Details from Google Books API
+        async function fetchBookDetails(isbn) {
+            const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.items && data.items.length > 0) {
+                    const bookInfo = data.items[0].volumeInfo;
+
+                    currentScannedBook = {
+                        isbn: isbn,
+                        title: bookInfo.title || 'N/A',
+                        authors: bookInfo.authors ? bookInfo.authors.join(', ') : 'N/A',
+                        publisher: bookInfo.publisher || 'N/A',
+                        publishedDate: bookInfo.publishedDate || 'N/A',
+                        categories: bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A',
+                        description: bookInfo.description || 'No description available'
+                    };
+
+                    displayScannedBook(currentScannedBook);
+                    showAlert('Book details retrieved!', 'success');
+
+                    // Auto-save to ISBN_List
+                    await saveToISBNList();
+                } else {
+                    showAlert('No book details found for ISBN: ' + isbn, 'error');
+                    currentScannedBook = {
+                        isbn: isbn,
+                        title: 'Not Found',
+                        authors: 'N/A',
+                        publisher: 'N/A',
+                        publishedDate: 'N/A',
+                        categories: 'N/A',
+                        description: 'No information available for this ISBN'
+                    };
+                    displayScannedBook(currentScannedBook);
+                }
+            } catch (error) {
+                console.error('Error fetching book details:', error);
+                showAlert('Error fetching book details', 'error');
+            }
+        }
+
+        // Display Scanned Book
+        function displayScannedBook(book) {
+            document.getElementById('scannedISBN').textContent = book.isbn;
+            document.getElementById('scannedBookTitle').textContent = book.title;
+            document.getElementById('scannedAuthor').textContent = book.authors;
+            document.getElementById('scannedPublisher').textContent = book.publisher;
+            document.getElementById('scannedPublishedDate').textContent = book.publishedDate;
+            document.getElementById('scannedCategories').textContent = book.categories;
+            document.getElementById('scannedDescription').textContent = book.description;
+            document.getElementById('scannedBookDetails').style.display = 'block';
+        }
+
+        // Clear Scanned Book
+        function clearScannedBook() {
+            currentScannedBook = null;
+            document.getElementById('scannedBookDetails').style.display = 'none';
+        }
+
+        // Save to ISBN_List Sheet
+        async function saveToISBNList() {
+            if (!currentScannedBook) {
+                console.log('No book data to save');
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveToISBNListBtn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = '💾 Saving...';
+            }
+
+            const dataToSend = {
+                action: 'addISBN',
+                isbn: currentScannedBook.isbn,
+                bookTitle: currentScannedBook.title,
+                authors: currentScannedBook.authors,
+                publisher: currentScannedBook.publisher,
+                publishedDate: currentScannedBook.publishedDate,
+                categories: currentScannedBook.categories
+            };
+
+            console.log('Saving to ISBN_List:', dataToSend);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('Save result:', result);
+
+                if (result.success) {
+                    showAlert('✅ Book saved to ISBN_List successfully!', 'success');
+                    // Auto-refresh the ISBN List grid view
+                    await loadISBNList();
+                    clearScannedBook();
+                } else {
+                    // Show alert only if it's not a duplicate
+                    if (!result.message.includes('already exists')) {
+                        showAlert('Failed: ' + result.message, 'error');
+                    } else {
+                        console.log('Book already in ISBN_List:', result.message);
+                        // Still refresh to show it's there
+                        await loadISBNList();
+                    }
+                }
+            } catch (error) {
+                console.error('Error saving:', error);
+                showAlert('Error saving book', 'error');
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '💾 Save to ISBN List';
+                }
+            }
+        }
+
+        // Load ISBN_List from Google Sheets
+        async function loadISBNList() {
+            const tableContainer = document.getElementById('isbnTableContainer');
+            tableContainer.innerHTML = '<div class="empty-grid-message">Loading...</div>';
+
+            const dataToSend = {
+                action: 'getISBNList'
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('ISBN List result:', result);
+
+                if (result.success && result.data && result.data.length > 0) {
+                    displayISBNTable(result.data);
+                } else {
+                    tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
+                }
+            } catch (error) {
+                console.error('Error loading ISBN List:', error);
+                tableContainer.innerHTML = '<div class="empty-grid-message">Error loading ISBN List. Please try again.</div>';
+            }
+        }
+
+        // Display ISBN_List in table view
+        function displayISBNTable(books) {
+            const tableContainer = document.getElementById('isbnTableContainer');
+
+            if (!books || books.length === 0) {
+                tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
+                return;
+            }
+
+            // Sort books by most recent (reverse order)
+            const sortedBooks = [...books].reverse();
+
+            let tableHTML = `
+                <table class="isbn-table">
+                    <thead>
+                        <tr>
+                            <th>ISBN</th>
+                            <th>Book Title</th>
+                            <th>Author</th>
+                            <th>Genre</th>
+                            <th>Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            sortedBooks.forEach((book, index) => {
+                // Split categories into genre and category (if available)
+                const categories = book.categories ? book.categories.split(',').map(c => c.trim()) : [];
+                const genre = categories[0] || 'N/A';
+                const category = categories.slice(1).join(', ') || categories[0] || 'N/A';
+
+                tableHTML += `
+                    <tr data-isbn="${book.isbn}"
+                        data-title="${book.bookTitle || 'Unknown Title'}"
+                        data-author="${book.authors || 'N/A'}"
+                        data-genre="${genre}"
+                        data-category="${category}">
+                        <td>${book.isbn || 'N/A'}</td>
+                        <td><strong>${book.bookTitle || 'Unknown Title'}</strong></td>
+                        <td>${book.authors || 'N/A'}</td>
+                        <td>${genre}</td>
+                        <td>${category}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            tableContainer.innerHTML = tableHTML;
+
+            // Update book count
+            document.getElementById('bookCount').textContent = sortedBooks.length;
+
+            // Show the slide button section
+            document.getElementById('slideToSaveSection').style.display = 'block';
+
+            // Initialize the main slide button
+            initializeMainSlideButton();
+        }
+
+        // Initialize main slide button functionality
+        function initializeMainSlideButton() {
+            const container = document.getElementById('mainSlideButton');
+            if (!container) return;
+
+            const slideButton = container.querySelector('.slide-button');
+            const slideBackground = container.querySelector('.slide-background');
+            let isDragging = false;
+            let startX = 0;
+            let currentX = 0;
+
+            const handleStart = (e) => {
+                isDragging = true;
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                slideButton.style.transition = 'none';
+                slideBackground.style.transition = 'none';
+            };
+
+            const handleMove = (e) => {
+                if (!isDragging) return;
+
+                e.preventDefault();
+                currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                const deltaX = currentX - startX;
+                const maxDistance = container.offsetWidth - slideButton.offsetWidth - 10;
+
+                if (deltaX >= 0 && deltaX <= maxDistance) {
+                    slideButton.style.left = `${5 + deltaX}px`;
+                    const percentage = (deltaX / maxDistance) * 100;
+                    slideBackground.style.width = `${percentage}%`;
+                }
+            };
+
+            const handleEnd = async (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+
+                slideButton.style.transition = 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)';
+                slideBackground.style.transition = 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)';
+
+                const deltaX = currentX - startX;
+                const maxDistance = container.offsetWidth - slideButton.offsetWidth - 10;
+
+                // If slid more than 80%, trigger save
+                if (deltaX > maxDistance * 0.8) {
+                    container.classList.add('unlocked');
+                    slideButton.textContent = '✓';
+                    slideBackground.style.width = '100%';
+
+                    await saveToBookRegistryFromSlide(container);
+                } else {
+                    // Reset
+                    slideButton.style.left = '5px';
+                    slideBackground.style.width = '0%';
+                }
+            };
+
+            // Mouse events
+            slideButton.addEventListener('mousedown', handleStart);
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+
+            // Touch events
+            slideButton.addEventListener('touchstart', handleStart, { passive: false });
+            document.addEventListener('touchmove', handleMove, { passive: false });
+            document.addEventListener('touchend', handleEnd);
+        }
+
+        // Save ALL books to Book_Registry Sheet from main slide button (BULK SAVE)
+        async function saveToBookRegistryFromSlide(slideContainer) {
+            // Validate form fields
+            const contactPerson = document.getElementById('contactPerson').value.trim();
+            const contactNumber = document.getElementById('contactNumber').value.trim();
+            const unitNo = document.getElementById('unitNo').value.trim();
+
+            if (!contactPerson || !contactNumber || !unitNo) {
+                showAlert('⚠️ Please fill in Contact Person, Contact Number, and Unit No before saving!', 'error');
+
+                // Reset slide button
+                setTimeout(() => {
+                    resetSlideButton(slideContainer);
+                }, 500);
+
+                return;
+            }
+
+            // Get all books from the table
+            const rows = document.querySelectorAll('.isbn-table tbody tr');
+
+            if (rows.length === 0) {
+                showAlert('⚠️ No books to save!', 'error');
+                setTimeout(() => {
+                    resetSlideButton(slideContainer);
+                }, 500);
+                return;
+            }
+
+            const books = [];
+            rows.forEach(row => {
+                books.push({
+                    isbn: row.dataset.isbn,
+                    bookTitle: row.dataset.title,
+                    author: row.dataset.author,
+                    genre: row.dataset.genre,
+                    category: row.dataset.category
+                });
+            });
+
+            const dataToSend = {
+                action: 'bulkSaveToBookRegistry',
+                books: books,
+                contactPerson: contactPerson,
+                contactNumber: contactNumber,
+                unitNo: unitNo,
+                language: '' // Empty for now
+            };
+
+            console.log('Bulk saving to Book_Registry:', dataToSend);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('Bulk save result:', result);
+
+                if (result.success) {
+                    showAlert(`✅ Successfully saved ${result.savedCount || books.length} book(s) to Book Registry!`, 'success');
+
+                    // Clear the entire table with animation
+                    setTimeout(() => {
+                        const tbody = document.querySelector('.isbn-table tbody');
+                        if (tbody) {
+                            // Animate all rows out
+                            rows.forEach((row, index) => {
+                                setTimeout(() => {
+                                    row.style.opacity = '0';
+                                    row.style.transform = 'translateX(100%)';
+                                }, index * 50); // Stagger the animations
+                            });
+
+                            // After all animations, clear the view
+                            setTimeout(() => {
+                                document.getElementById('slideToSaveSection').style.display = 'none';
+                                loadISBNList(); // Reload to show empty message
+
+                                // Clear the form fields
+                                document.getElementById('contactPerson').value = '';
+                                document.getElementById('contactNumber').value = '';
+                                document.getElementById('unitNo').value = '';
+                            }, rows.length * 50 + 300);
+                        }
+                    }, 500);
+                } else {
+                    showAlert('Failed: ' + result.message, 'error');
+
+                    // Reset slide button
+                    setTimeout(() => {
+                        resetSlideButton(slideContainer);
+                    }, 500);
+                }
+            } catch (error) {
+                console.error('Error bulk saving to Book Registry:', error);
+                showAlert('Error saving books to registry', 'error');
+
+                // Reset slide button
+                setTimeout(() => {
+                    resetSlideButton(slideContainer);
+                }, 500);
+            }
+        }
+
+        // Reset slide button helper function
+        function resetSlideButton(slideContainer) {
+            slideContainer.classList.remove('unlocked');
+            const slideButton = slideContainer.querySelector('.slide-button');
+            const slideBackground = slideContainer.querySelector('.slide-background');
+            slideButton.textContent = '→';
+            slideButton.style.left = '5px';
+            slideBackground.style.width = '0%';
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            checkIframePermissions();
+            // Load ISBN_List on page load
+            loadISBNList();
+        });
+    </script>
+</body>
+</html>
