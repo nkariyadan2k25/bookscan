@@ -1027,7 +1027,9 @@
                 timestamp: new Date().getTime()
             };
 
-            console.log('Loading ISBN_List from server with timestamp:', dataToSend.timestamp);
+            console.log('=== Loading ISBN_List ===');
+            console.log('API URL:', API_URL);
+            console.log('Request data:', dataToSend);
 
             try {
                 const response = await fetch(API_URL, {
@@ -1042,21 +1044,59 @@
                     cache: 'no-store'
                 });
 
-                const result = await response.json();
-                console.log('ISBN List loaded - Count:', result.data ? result.data.length : 0, 'Data:', result);
+                console.log('Response status:', response.status, response.statusText);
+                console.log('Response OK:', response.ok);
 
-                if (result.success && result.data && result.data.length > 0) {
-                    console.log('Displaying', result.data.length, 'books in table');
-                    displayISBNTable(result.data);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const responseText = await response.text();
+                console.log('Raw response text:', responseText);
+
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    console.error('Failed to parse:', responseText.substring(0, 200));
+                    throw new Error('Invalid JSON response from server');
+                }
+
+                console.log('Parsed result:', result);
+                console.log('Result success:', result.success);
+                console.log('Result data:', result.data);
+                console.log('Data count:', result.data ? result.data.length : 'null/undefined');
+
+                if (result && result.success) {
+                    if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+                        console.log('✓ Displaying', result.data.length, 'books in table');
+                        displayISBNTable(result.data);
+                    } else {
+                        console.log('✓ No books in ISBN_List (empty array or no data)');
+                        tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
+                        document.getElementById('slideToSaveSection').style.display = 'none';
+                    }
                 } else {
-                    console.log('No books in ISBN_List, showing empty message');
-                    tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
-                    // Ensure slide button is hidden
-                    document.getElementById('slideToSaveSection').style.display = 'none';
+                    console.warn('Response success=false or missing:', result);
+                    const errorMsg = result && result.message ? result.message : 'Unknown error';
+                    tableContainer.innerHTML = `<div class="empty-grid-message">Unable to load ISBN List: ${errorMsg}</div>`;
                 }
             } catch (error) {
-                console.error('Error loading ISBN List:', error);
-                tableContainer.innerHTML = '<div class="empty-grid-message">Error loading ISBN List. Please try again.</div>';
+                console.error('=== Error loading ISBN List ===');
+                console.error('Error type:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+
+                tableContainer.innerHTML = `
+                    <div class="empty-grid-message">
+                        Error loading ISBN List.<br>
+                        <small style="color: #999; margin-top: 10px; display: block;">${error.message}</small><br>
+                        <button onclick="loadISBNList()" style="margin-top: 10px; padding: 8px 16px; background: #2e8b57; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Retry
+                        </button>
+                    </div>
+                `;
             }
         }
 
