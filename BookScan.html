@@ -378,72 +378,6 @@
             color: white;
         }
 
-        /* Processing State */
-        .slide-container.processing .slide-background {
-            background: linear-gradient(90deg,
-                #2e8b57 0%,
-                #3cb371 25%,
-                #2e8b57 50%,
-                #3cb371 75%,
-                #2e8b57 100%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-        }
-
-        .slide-container.processing .slide-button {
-            background: linear-gradient(180deg, #5cb85c 0%, #4caf50 100%);
-            animation: pulse 1s infinite;
-        }
-
-        .slide-container.processing .slide-text {
-            color: white;
-            animation: textFade 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 200% 0;
-            }
-            100% {
-                background-position: -200% 0;
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 3px 10px rgba(76, 175, 80, 0.5), inset 0 1px 0 rgba(255,255,255,0.3);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 5px 15px rgba(76, 175, 80, 0.7), inset 0 1px 0 rgba(255,255,255,0.5);
-            }
-        }
-
-        @keyframes textFade {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.7;
-            }
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
         .empty-grid-message {
             text-align: center;
             color: #666;
@@ -451,64 +385,6 @@
             padding: 40px;
             background: #f8f9fa;
             border-radius: 8px;
-        }
-
-        /* Processing Overlay */
-        .processing-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.3);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            backdrop-filter: blur(2px);
-        }
-
-        .processing-overlay.active {
-            display: flex;
-        }
-
-        .processing-message {
-            background: white;
-            padding: 30px 50px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            animation: fadeInScale 0.3s ease-out;
-        }
-
-        .processing-message .spinner {
-            width: 40px;
-            height: 40px;
-            border-width: 4px;
-            margin: 0 auto 20px;
-        }
-
-        .processing-message h3 {
-            color: #2e8b57;
-            margin: 0 0 10px 0;
-            font-size: 20px;
-        }
-
-        .processing-message p {
-            color: #666;
-            margin: 0;
-            font-size: 14px;
-        }
-
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
         }
 
         @media (max-width: 600px) {
@@ -697,15 +573,6 @@
 
     <!-- Alert -->
     <div id="alertBox" class="alert"></div>
-
-    <!-- Processing Overlay -->
-    <div id="processingOverlay" class="processing-overlay">
-        <div class="processing-message">
-            <div class="spinner"></div>
-            <h3>Saving to Book Registry</h3>
-            <p id="processingStatus">Processing <span id="processingCount">0</span> book(s)...</p>
-        </div>
-    </div>
 
     <script>
         // Configuration
@@ -1021,79 +888,57 @@
             const tableContainer = document.getElementById('isbnTableContainer');
             tableContainer.innerHTML = '<div class="empty-grid-message">Loading...</div>';
 
-            // Add timestamp to prevent caching
             const dataToSend = {
-                action: 'getISBNList',
-                timestamp: new Date().getTime()
+                action: 'getISBNList'
             };
 
-            console.log('=== Loading ISBN_List ===');
+            console.log('📥 Loading ISBN_List from Google Sheets...');
             console.log('API URL:', API_URL);
-            console.log('Request data:', dataToSend);
+            console.log('Request:', JSON.stringify(dataToSend));
 
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache'
-                    },
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(dataToSend),
-                    redirect: 'follow',
-                    cache: 'no-store'
+                    redirect: 'follow'
                 });
 
                 console.log('Response status:', response.status, response.statusText);
-                console.log('Response OK:', response.ok);
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                const responseText = await response.text();
-                console.log('Raw response text:', responseText);
+                const result = await response.json();
+                console.log('✓ Response received:', result);
+                console.log('Success:', result.success);
+                console.log('Data length:', result.data ? result.data.length : 'null');
+                console.log('Full data:', result.data);
 
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('JSON parse error:', parseError);
-                    console.error('Failed to parse:', responseText.substring(0, 200));
-                    throw new Error('Invalid JSON response from server');
-                }
-
-                console.log('Parsed result:', result);
-                console.log('Result success:', result.success);
-                console.log('Result data:', result.data);
-                console.log('Data count:', result.data ? result.data.length : 'null/undefined');
-
-                if (result && result.success) {
+                if (result.success) {
                     if (result.data && Array.isArray(result.data) && result.data.length > 0) {
                         console.log('✓ Displaying', result.data.length, 'books in table');
                         displayISBNTable(result.data);
                     } else {
-                        console.log('✓ No books in ISBN_List (empty array or no data)');
+                        console.log('ℹ️ No books in ISBN_List');
                         tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
                         document.getElementById('slideToSaveSection').style.display = 'none';
                     }
                 } else {
-                    console.warn('Response success=false or missing:', result);
-                    const errorMsg = result && result.message ? result.message : 'Unknown error';
-                    tableContainer.innerHTML = `<div class="empty-grid-message">Unable to load ISBN List: ${errorMsg}</div>`;
+                    console.error('❌ Server returned success=false:', result.message);
+                    tableContainer.innerHTML = `<div class="empty-grid-message">Server Error: ${result.message || 'Unknown error'}</div>`;
                 }
             } catch (error) {
-                console.error('=== Error loading ISBN List ===');
-                console.error('Error type:', error.name);
+                console.error('❌ Error loading ISBN List:', error);
+                console.error('Error name:', error.name);
                 console.error('Error message:', error.message);
-                console.error('Error stack:', error.stack);
-
                 tableContainer.innerHTML = `
                     <div class="empty-grid-message">
-                        Error loading ISBN List.<br>
+                        Error loading ISBN List<br>
                         <small style="color: #999; margin-top: 10px; display: block;">${error.message}</small><br>
                         <button onclick="loadISBNList()" style="margin-top: 10px; padding: 8px 16px; background: #2e8b57; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            Retry
+                            🔄 Retry
                         </button>
                     </div>
                 `;
@@ -1102,15 +947,20 @@
 
         // Display ISBN_List in table view
         function displayISBNTable(books) {
+            console.log('📊 displayISBNTable called with:', books);
+            console.log('Books array length:', books ? books.length : 'null');
+
             const tableContainer = document.getElementById('isbnTableContainer');
 
             if (!books || books.length === 0) {
+                console.log('⚠️ No books to display');
                 tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
                 return;
             }
 
             // Sort books by most recent (reverse order)
             const sortedBooks = [...books].reverse();
+            console.log('📋 Sorted books:', sortedBooks);
 
             let tableHTML = `
                 <table class="isbn-table">
@@ -1127,10 +977,14 @@
             `;
 
             sortedBooks.forEach((book, index) => {
+                console.log(`Book ${index + 1}:`, book);
+
                 // Split categories into genre and category (if available)
                 const categories = book.categories ? book.categories.split(',').map(c => c.trim()) : [];
                 const genre = categories[0] || 'N/A';
                 const category = categories.slice(1).join(', ') || categories[0] || 'N/A';
+
+                console.log(`  - Genre: ${genre}, Category: ${category}`);
 
                 tableHTML += `
                     <tr data-isbn="${book.isbn}"
@@ -1147,21 +1001,27 @@
                 `;
             });
 
+            console.log('✓ Table HTML generated, rows:', sortedBooks.length);
+
             tableHTML += `
                     </tbody>
                 </table>
             `;
 
             tableContainer.innerHTML = tableHTML;
+            console.log('✓ Table inserted into DOM');
 
             // Update book count
             document.getElementById('bookCount').textContent = sortedBooks.length;
+            console.log('✓ Book count updated:', sortedBooks.length);
 
             // Show the slide button section
             document.getElementById('slideToSaveSection').style.display = 'block';
+            console.log('✓ Slide button section shown');
 
             // Initialize the main slide button
             initializeMainSlideButton();
+            console.log('✓ Slide button initialized');
         }
 
         // Initialize main slide button functionality
@@ -1261,25 +1121,6 @@
                 return;
             }
 
-            // Enter PROCESSING state
-            slideContainer.classList.remove('unlocked');
-            slideContainer.classList.add('processing');
-            const slideButton = slideContainer.querySelector('.slide-button');
-            const slideText = slideContainer.querySelector('.slide-text');
-            const originalText = slideText.textContent;
-
-            // Show spinner and processing text
-            slideButton.innerHTML = '<div class="spinner"></div>';
-            slideText.textContent = '⏳ Processing...';
-
-            // Show processing overlay
-            const processingOverlay = document.getElementById('processingOverlay');
-            const processingCount = document.getElementById('processingCount');
-            processingCount.textContent = rows.length;
-            processingOverlay.classList.add('active');
-
-            console.log('Entered processing state - saving', rows.length, 'books');
-
             const books = [];
             rows.forEach(row => {
                 books.push({
@@ -1314,30 +1155,7 @@
                 console.log('Bulk save result:', result);
 
                 if (result.success) {
-                    console.log('Bulk save successful!');
-
-                    // Update processing overlay to show success
-                    const processingStatus = document.getElementById('processingStatus');
-                    processingStatus.innerHTML = `<strong style="color: #2e8b57;">✓ Successfully saved ${result.savedCount || books.length} book(s)!</strong>`;
-
-                    // Update processing state to show success
-                    slideText.textContent = '✅ Saved Successfully!';
-                    slideButton.innerHTML = '✓';
-                    slideContainer.classList.remove('processing');
-                    slideContainer.classList.add('unlocked');
-
-                    let successMsg = `✅ Successfully saved ${result.savedCount || books.length} book(s) to Book Registry!`;
-                    if (result.skippedCount > 0) {
-                        successMsg += ` (${result.skippedCount} duplicate(s) skipped)`;
-                    }
-
-                    // Hide overlay after brief success message
-                    setTimeout(() => {
-                        processingOverlay.classList.remove('active');
-                        showAlert(successMsg, 'success');
-                    }, 1000);
-
-                    console.log('Clearing view and reloading...');
+                    showAlert(`✅ Successfully saved ${result.savedCount || books.length} book(s) to Book Registry!`, 'success');
 
                     // Clear the entire table with animation
                     setTimeout(() => {
@@ -1351,90 +1169,45 @@
                                 }, index * 50); // Stagger the animations
                             });
 
-                            // After all animations, clear the view completely
+                            // After all animations, clear the view
                             setTimeout(() => {
-                                // Clear the table container completely
-                                const tableContainer = document.getElementById('isbnTableContainer');
-                                tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
-
-                                // Hide the slide button section
                                 document.getElementById('slideToSaveSection').style.display = 'none';
+                                loadISBNList(); // Reload to show empty message
 
                                 // Clear the form fields
                                 document.getElementById('contactPerson').value = '';
                                 document.getElementById('contactNumber').value = '';
                                 document.getElementById('unitNo').value = '';
-
-                                // Force reload from server to ensure fresh data
-                                console.log('Reloading ISBN_List from server...');
-                                setTimeout(() => {
-                                    loadISBNList();
-                                }, 500);
                             }, rows.length * 50 + 300);
                         }
                     }, 500);
                 } else {
-                    console.error('Bulk save failed:', result.message);
+                    showAlert('Failed: ' + result.message, 'error');
 
-                    // Update processing overlay to show error
-                    const processingStatus = document.getElementById('processingStatus');
-                    processingStatus.innerHTML = `<strong style="color: #dc3545;">✗ Save Failed</strong>`;
-
-                    // Update processing state to show error
-                    slideText.textContent = '❌ Save Failed';
-                    slideButton.innerHTML = '✗';
-                    slideContainer.classList.remove('processing');
-
-                    // Hide overlay and show error
-                    setTimeout(() => {
-                        processingOverlay.classList.remove('active');
-                        showAlert('Failed: ' + result.message, 'error');
-                    }, 1000);
-
-                    // Reset slide button after showing error
+                    // Reset slide button
                     setTimeout(() => {
                         resetSlideButton(slideContainer);
-                        slideText.textContent = originalText;
-                    }, 3000);
+                    }, 500);
                 }
             } catch (error) {
                 console.error('Error bulk saving to Book Registry:', error);
+                showAlert('Error saving books to registry', 'error');
 
-                // Update processing overlay to show error
-                const processingStatus = document.getElementById('processingStatus');
-                processingStatus.innerHTML = `<strong style="color: #dc3545;">✗ Network Error</strong>`;
-
-                // Update processing state to show error
-                slideText.textContent = '❌ Network Error';
-                slideButton.innerHTML = '✗';
-                slideContainer.classList.remove('processing');
-
-                // Hide overlay and show error
-                setTimeout(() => {
-                    processingOverlay.classList.remove('active');
-                    showAlert('Error saving books to registry', 'error');
-                }, 1000);
-
-                // Reset slide button after showing error
+                // Reset slide button
                 setTimeout(() => {
                     resetSlideButton(slideContainer);
-                    slideText.textContent = originalText;
-                }, 3000);
+                }, 500);
             }
         }
 
         // Reset slide button helper function
         function resetSlideButton(slideContainer) {
             slideContainer.classList.remove('unlocked');
-            slideContainer.classList.remove('processing');
             const slideButton = slideContainer.querySelector('.slide-button');
             const slideBackground = slideContainer.querySelector('.slide-background');
-            const slideText = slideContainer.querySelector('.slide-text');
-
-            slideButton.innerHTML = '→';
+            slideButton.textContent = '→';
             slideButton.style.left = '5px';
             slideBackground.style.width = '0%';
-            slideText.textContent = 'Slide to Save All →';
         }
 
         // Initialize on page load
