@@ -484,6 +484,16 @@
             100% { transform: scale(1); }
         }
 
+        @keyframes flashIn {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
         .empty-grid-message {
             text-align: center;
             color: #666;
@@ -693,6 +703,9 @@
         let currentScannedBook = null;
         let isScannerActive = false;
 
+        // Cache for Google Books API responses (speeds up duplicate scans)
+        const bookCache = new Map();
+
         // Check if running in iframe
         function isInIframe() {
             try {
@@ -868,13 +881,28 @@
             }
         }
 
-        // Fetch Book Details from Google Books API
+        // Fetch Book Details from Google Books API (with caching)
         async function fetchBookDetails(isbn) {
+            console.log('⚡ Fetching book details for ISBN:', isbn);
+            const startTime = performance.now();
+
+            // Check cache first for instant response
+            if (bookCache.has(isbn)) {
+                console.log('✨ Using cached data for ISBN:', isbn);
+                currentScannedBook = bookCache.get(isbn);
+                displayScannedBookQuick(currentScannedBook);
+                await saveToISBNListQuick();
+                return;
+            }
+
             const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
 
             try {
                 const response = await fetch(apiUrl);
                 const data = await response.json();
+
+                const fetchTime = performance.now() - startTime;
+                console.log(`⏱️ API response time: ${fetchTime.toFixed(0)}ms`);
 
                 if (data.items && data.items.length > 0) {
                     const bookInfo = data.items[0].volumeInfo;
@@ -888,14 +916,13 @@
                         categories: bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A',
                         description: bookInfo.description || 'No description available',
                         language: bookInfo.language ? bookInfo.language : "N/A"
-      
                     };
 
-                    displayScannedBook(currentScannedBook);
-                    showAlert('Book details retrieved!', 'success');
+                    // Cache the result for future scans
+                    bookCache.set(isbn, currentScannedBook);
 
-                    // Auto-save to ISBN_List
-                    await saveToISBNList();
+                    displayScannedBookQuick(currentScannedBook);
+                    await saveToISBNListQuick();
                 } else {
                     showAlert('No book details found for ISBN: ' + isbn, 'error');
                     currentScannedBook = {
@@ -908,15 +935,46 @@
                         description: 'No information available for this ISBN',
                         language: 'N/A'
                     };
-                    displayScannedBook(currentScannedBook);
+                    displayScannedBookQuick(currentScannedBook);
+                    await saveToISBNListQuick();
                 }
             } catch (error) {
                 console.error('Error fetching book details:', error);
                 showAlert('Error fetching book details', 'error');
             }
+
+            const totalTime = performance.now() - startTime;
+            console.log(`✅ Total processing time: ${totalTime.toFixed(0)}ms`);
         }
 
-        // Display Scanned Book
+        // Display Scanned Book (Quick - flashes for 1.5 seconds then auto-hides)
+        function displayScannedBookQuick(book) {
+            document.getElementById('scannedISBN').textContent = book.isbn;
+            document.getElementById('scannedBookTitle').textContent = book.title;
+            document.getElementById('scannedAuthor').textContent = book.authors;
+            document.getElementById('scannedPublisher').textContent = book.publisher;
+            document.getElementById('scannedPublishedDate').textContent = book.publishedDate;
+            document.getElementById('scannedCategories').textContent = book.categories;
+            document.getElementById('scannedLanguage').textContent = book.language;
+            document.getElementById('scannedDescription').textContent = book.description;
+
+            const detailsEl = document.getElementById('scannedBookDetails');
+            detailsEl.style.display = 'block';
+
+            // Add flash animation
+            detailsEl.style.animation = 'flashIn 0.3s ease-in-out';
+
+            // Auto-hide after 1.5 seconds
+            setTimeout(() => {
+                detailsEl.style.animation = 'fadeOut 0.3s ease-in-out';
+                setTimeout(() => {
+                    detailsEl.style.display = 'none';
+                    detailsEl.style.animation = '';
+                }, 300);
+            }, 1500);
+        }
+
+        // Display Scanned Book (original - for manual viewing)
         function displayScannedBook(book) {
             document.getElementById('scannedISBN').textContent = book.isbn;
             document.getElementById('scannedBookTitle').textContent = book.title;
@@ -935,7 +993,65 @@
             document.getElementById('scannedBookDetails').style.display = 'none';
         }
 
-        // Save to ISBN_List Sheet
+        // Save to ISBN_List Sheet (Quick - with optimistic UI update)
+        async function saveToISBNListQuick() {
+            if (!currentScannedBook) {
+                console.log('No book data to save');
+                return;
+            }
+
+            const dataToSend = {
+                action: 'addISBN',
+                isbn: currentScannedBook.isbn,
+                bookTitle: currentScannedBook.title,
+                authors: currentScannedBook.authors,
+                publisher: currentScannedBook.publisher,
+                publishedDate: currentScannedBook.publishedDate,
+                categories: currentScannedBook.categories,
+                language: currentScannedBook.language
+            };
+
+            console.log('⚡ Quick saving to ISBN_List:', dataToSend);
+
+            // Optimistic UI update - add to table immediately
+            addBookToTableOptimistic(currentScannedBook);
+
+            try {
+                // Save in background without blocking
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('Save result:', result);
+
+                if (result.success) {
+                    console.log('✅ Book saved successfully');
+                    // Update the optimistic row to confirmed state
+                    confirmOptimisticBook(currentScannedBook.isbn);
+                } else {
+                    if (result.message.includes('already exists')) {
+                        console.log('Book already exists, keeping optimistic update');
+                        confirmOptimisticBook(currentScannedBook.isbn);
+                    } else {
+                        console.error('Save failed:', result.message);
+                        // Remove the optimistic row
+                        removeOptimisticBook(currentScannedBook.isbn);
+                        showAlert('Failed: ' + result.message, 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Error saving:', error);
+                // Remove the optimistic row
+                removeOptimisticBook(currentScannedBook.isbn);
+                showAlert('Error saving book', 'error');
+            }
+        }
+
+        // Save to ISBN_List Sheet (original - for manual saves)
         async function saveToISBNList() {
             if (!currentScannedBook) {
                 console.log('No book data to save');
@@ -1545,6 +1661,134 @@
             editBtn.style.color = '#2e8b57';
 
             console.log('📝 Edit mode disabled');
+        }
+
+        // Add book to table optimistically (before save confirmation)
+        function addBookToTableOptimistic(book) {
+            const tableContainer = document.getElementById('isbnTableContainer');
+            const table = tableContainer.querySelector('.isbn-table tbody');
+
+            if (!table) {
+                // Table doesn't exist yet, create it
+                const slideSection = document.getElementById('slideToSaveSection');
+                if (slideSection) {
+                    slideSection.style.display = 'block';
+                }
+                loadISBNList(); // This will create the table structure
+                return;
+            }
+
+            // Check if book already exists
+            const existingRow = document.getElementById('row-' + book.isbn);
+            if (existingRow) {
+                console.log('Book already in table, highlighting it');
+                existingRow.style.animation = 'flashIn 0.5s ease-in-out';
+                setTimeout(() => {
+                    existingRow.style.animation = '';
+                }, 500);
+                return;
+            }
+
+            // Split categories
+            const categories = book.categories ? book.categories.split(',').map(c => c.trim()) : [];
+            const genre = categories[0] || 'N/A';
+            const category = categories.slice(1).join(', ') || categories[0] || 'N/A';
+
+            // Create new row with loading indicator
+            const newRow = document.createElement('tr');
+            newRow.id = 'row-' + book.isbn;
+            newRow.dataset.isbn = book.isbn;
+            newRow.dataset.title = book.title;
+            newRow.dataset.author = book.authors;
+            newRow.dataset.genre = genre;
+            newRow.dataset.category = category;
+            newRow.dataset.language = book.language;
+            newRow.classList.add('optimistic-row');
+            newRow.style.opacity = '0.6'; // Show it's pending
+
+            newRow.innerHTML = `
+                <td>${book.isbn || 'N/A'}</td>
+                <td class="editable-title"><strong>${book.title || 'Unknown Title'}</strong></td>
+                <td>${book.authors || 'N/A'}</td>
+                <td>${genre}</td>
+                <td>${category}</td>
+                <td class="editable-language">${book.language || 'N/A'}</td>
+                <td style="text-align: center;">
+                    <span style="color: #FFA500; font-size: 16px;">⏳</span>
+                </td>
+            `;
+
+            // Add to top of table with animation
+            table.insertBefore(newRow, table.firstChild);
+            newRow.style.animation = 'flashIn 0.3s ease-in-out';
+
+            // Update book count
+            const bookCount = table.querySelectorAll('tr').length;
+            const bookCountEl = document.getElementById('bookCount');
+            if (bookCountEl) {
+                bookCountEl.textContent = bookCount;
+            }
+
+            // Show slide section if hidden
+            const slideSection = document.getElementById('slideToSaveSection');
+            if (slideSection) {
+                slideSection.style.display = 'block';
+            }
+
+            console.log('✨ Added book to table optimistically');
+        }
+
+        // Confirm optimistic book after successful save
+        function confirmOptimisticBook(isbn) {
+            const row = document.getElementById('row-' + isbn);
+            if (!row) return;
+
+            row.classList.remove('optimistic-row');
+            row.style.opacity = '1';
+
+            // Replace loading indicator with edit button
+            const editCell = row.querySelector('td:last-child');
+            editCell.innerHTML = `
+                <button class="edit-btn" onclick="toggleEditMode('${isbn}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;">
+                    ✏️
+                </button>
+            `;
+
+            row.style.animation = 'successPulse 0.5s ease-in-out';
+            setTimeout(() => {
+                row.style.animation = '';
+            }, 500);
+
+            console.log('✅ Confirmed optimistic book:', isbn);
+        }
+
+        // Remove optimistic book if save failed
+        function removeOptimisticBook(isbn) {
+            const row = document.getElementById('row-' + isbn);
+            if (!row) return;
+
+            row.style.animation = 'fadeOut 0.3s ease-in-out';
+            setTimeout(() => {
+                row.remove();
+
+                // Update book count
+                const table = document.querySelector('.isbn-table tbody');
+                if (table) {
+                    const bookCount = table.querySelectorAll('tr').length;
+                    const bookCountEl = document.getElementById('bookCount');
+                    if (bookCountEl) {
+                        bookCountEl.textContent = bookCount;
+                    }
+
+                    // Hide slide section if no books
+                    if (bookCount === 0) {
+                        document.getElementById('slideToSaveSection').style.display = 'none';
+                    }
+                }
+            }, 300);
+
+            console.log('❌ Removed optimistic book:', isbn);
         }
 
         // Initialize on page load
