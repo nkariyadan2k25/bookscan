@@ -897,6 +897,7 @@
             document.getElementById('scannedPublisher').textContent = book.publisher;
             document.getElementById('scannedPublishedDate').textContent = book.publishedDate;
             document.getElementById('scannedCategories').textContent = book.categories;
+            document.getElementById('scannedLanguage').textContent = book.language;
             document.getElementById('scannedDescription').textContent = book.description;
             document.getElementById('scannedBookDetails').style.display = 'block';
         }
@@ -927,7 +928,8 @@
                 authors: currentScannedBook.authors,
                 publisher: currentScannedBook.publisher,
                 publishedDate: currentScannedBook.publishedDate,
-                categories: currentScannedBook.categories
+                categories: currentScannedBook.categories,
+                lanaguage: currentScannedBook.lanaguage
             };
 
             console.log('Saving to ISBN_List:', dataToSend);
@@ -1057,6 +1059,7 @@
                             <th>Author</th>
                             <th>Genre</th>
                             <th>Category</th>
+                            <th>Language</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1083,6 +1086,7 @@
                         <td>${book.authors || 'N/A'}</td>
                         <td>${genre}</td>
                         <td>${category}</td>
+                        <td>${language}</td>
                     </tr>
                 `;
             });
