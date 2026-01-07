@@ -312,6 +312,22 @@
             touch-action: none;
             user-select: none;
             border: 1px solid #c0c0c0;
+            transition: all 0.4s ease;
+        }
+
+        /* Active state - glossy light green */
+        .slide-container.active {
+            background: linear-gradient(180deg, #90ee90 0%, #7bcf7b 100%);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15),
+                        0 2px 10px rgba(46, 139, 87, 0.3),
+                        0 0 20px rgba(144, 238, 144, 0.4);
+            border: 1px solid #6bc46b;
+        }
+
+        .slide-container.active .slide-text {
+            color: #2d5a2d;
+            text-shadow: 0 1px 1px rgba(255,255,255,0.6);
+            font-weight: 700;
         }
 
         .slide-background {
@@ -331,9 +347,11 @@
             left: 5px;
             width: 50px;
             height: 50px;
-            background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+            background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
             border-radius: 50%;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.8);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25),
+                        inset 0 2px 4px rgba(255,255,255,0.9),
+                        inset 0 -2px 4px rgba(0,0,0,0.1);
             cursor: grab;
             transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
             display: flex;
@@ -341,12 +359,20 @@
             justify-content: center;
             font-size: 22px;
             z-index: 2;
-            border: 1px solid #d0d0d0;
+            border: 2px solid #e0e0e0;
+        }
+
+        .slide-container.active .slide-button {
+            background: linear-gradient(180deg, #ffffff 0%, #f5fff5 100%);
+            box-shadow: 0 4px 15px rgba(46, 139, 87, 0.4),
+                        inset 0 2px 6px rgba(255,255,255,1),
+                        inset 0 -2px 6px rgba(144, 238, 144, 0.3);
+            border: 2px solid #90ee90;
         }
 
         .slide-button:active {
             cursor: grabbing;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
         }
 
         .slide-text {
@@ -362,12 +388,49 @@
             pointer-events: none;
             z-index: 1;
             text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+            transition: all 0.3s ease;
+        }
+
+        /* Processing state */
+        .slide-container.processing {
+            background: linear-gradient(90deg, #4a90e2 0%, #5ba3f5 50%, #4a90e2 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.2),
+                        0 2px 15px rgba(74, 144, 226, 0.5);
+            border: 1px solid #3a7bc8;
+        }
+
+        .slide-container.processing .slide-button {
+            left: calc(100% - 55px);
+            background: linear-gradient(180deg, #ffffff 0%, #e3f2fd 100%);
+            animation: pulse 1s infinite;
+            cursor: wait;
+        }
+
+        .slide-container.processing .slide-text {
+            color: white;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        /* Success state */
+        .slide-container.unlocked {
+            background: linear-gradient(135deg, #2e8b57 0%, #3cb371 100%);
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.15),
+                        0 2px 20px rgba(46, 139, 87, 0.6),
+                        0 0 30px rgba(60, 179, 113, 0.5);
+            border: 1px solid #2e8b57;
+            animation: successPulse 0.5s ease;
         }
 
         .slide-container.unlocked .slide-button {
             left: calc(100% - 55px);
             background: linear-gradient(180deg, #5cb85c 0%, #4caf50 100%);
-            box-shadow: 0 3px 10px rgba(76, 175, 80, 0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.6),
+                        inset 0 2px 6px rgba(255,255,255,0.4),
+                        inset 0 -2px 6px rgba(0,0,0,0.2);
+            border: 2px solid #66bb6a;
         }
 
         .slide-container.unlocked .slide-background {
@@ -376,6 +439,25 @@
 
         .slide-container.unlocked .slide-text {
             color: white;
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* Animations */
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
 
         .empty-grid-message {
@@ -1022,6 +1104,13 @@
             // Initialize the main slide button
             initializeMainSlideButton();
             console.log('✓ Slide button initialized');
+
+            // Activate glossy green state when books are loaded
+            const slideContainer = document.getElementById('mainSlideButton');
+            if (slideContainer) {
+                slideContainer.classList.add('active');
+                console.log('✓ Slide button activated (glossy green)');
+            }
         }
 
         // Initialize main slide button functionality
@@ -1121,6 +1210,16 @@
                 return;
             }
 
+            // Switch to processing state
+            slideContainer.classList.remove('active', 'unlocked');
+            slideContainer.classList.add('processing');
+            const slideText = slideContainer.querySelector('.slide-text');
+            const slideButton = slideContainer.querySelector('.slide-button');
+            slideText.textContent = '⏳ Processing...';
+            slideButton.textContent = '⏳';
+
+            console.log('🔄 Switched to processing state');
+
             const books = [];
             rows.forEach(row => {
                 books.push({
@@ -1155,9 +1254,17 @@
                 console.log('Bulk save result:', result);
 
                 if (result.success) {
-                    showAlert(`✅ Successfully saved ${result.savedCount || books.length} book(s) to Book Registry!`, 'success');
+                    // Switch to success state
+                    slideContainer.classList.remove('processing', 'active');
+                    slideContainer.classList.add('unlocked');
+                    slideText.textContent = '✅ Saved Successfully!';
+                    slideButton.textContent = '✓';
 
-                    // Clear the entire table with animation
+                    console.log('✅ Switched to success state');
+
+                    showAlert(`✅ Successfully saved ${result.data.savedCount || books.length} book(s) to Book Registry!`, 'success');
+
+                    // Clear the entire table with animation after brief delay
                     setTimeout(() => {
                         const tbody = document.querySelector('.isbn-table tbody');
                         if (tbody) {
@@ -1180,11 +1287,11 @@
                                 document.getElementById('unitNo').value = '';
                             }, rows.length * 50 + 300);
                         }
-                    }, 500);
+                    }, 1000); // Wait 1 second to show success state
                 } else {
                     showAlert('Failed: ' + result.message, 'error');
 
-                    // Reset slide button
+                    // Reset slide button back to active state
                     setTimeout(() => {
                         resetSlideButton(slideContainer);
                     }, 500);
@@ -1193,7 +1300,7 @@
                 console.error('Error bulk saving to Book Registry:', error);
                 showAlert('Error saving books to registry', 'error');
 
-                // Reset slide button
+                // Reset slide button back to active state
                 setTimeout(() => {
                     resetSlideButton(slideContainer);
                 }, 500);
@@ -1202,10 +1309,13 @@
 
         // Reset slide button helper function
         function resetSlideButton(slideContainer) {
-            slideContainer.classList.remove('unlocked');
+            slideContainer.classList.remove('unlocked', 'processing');
+            slideContainer.classList.add('active'); // Return to active green state
             const slideButton = slideContainer.querySelector('.slide-button');
             const slideBackground = slideContainer.querySelector('.slide-background');
+            const slideText = slideContainer.querySelector('.slide-text');
             slideButton.textContent = '→';
+            slideText.textContent = 'Slide to Save All →';
             slideButton.style.left = '5px';
             slideBackground.style.width = '0%';
         }
