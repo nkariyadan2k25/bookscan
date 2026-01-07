@@ -296,6 +296,29 @@
             border-bottom: none;
         }
 
+        /* Editable cells */
+        .editable-title, .editable-language {
+            transition: all 0.3s ease;
+        }
+
+        .editable-title.editing, .editable-language.editing {
+            background: #fff9e6;
+            border: 2px solid #2e8b57;
+            border-radius: 4px;
+            padding: 8px;
+            outline: none;
+        }
+
+        .editable-title.editing:focus, .editable-language.editing:focus {
+            background: #fffef0;
+            box-shadow: 0 0 5px rgba(46, 139, 87, 0.3);
+        }
+
+        .edit-btn:hover {
+            transform: scale(1.2);
+            transition: transform 0.2s;
+        }
+
         /* Slide Button Container */
         .slide-button-cell {
             padding: 8px !important;
@@ -1064,6 +1087,7 @@
                             <th>Genre</th>
                             <th>Category</th>
                             <th>Language</th>
+                            <th style="width: 60px; text-align: center;">Edit</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1085,13 +1109,20 @@
                         data-author="${book.authors || 'N/A'}"
                         data-genre="${genre}"
                         data-category="${category}"
-                        data-language="${book.language || 'N/A'}">
+                        data-language="${book.language || 'N/A'}"
+                        id="row-${book.isbn}">
                         <td>${book.isbn || 'N/A'}</td>
-                        <td><strong>${book.bookTitle || 'Unknown Title'}</strong></td>
+                        <td class="editable-title"><strong>${book.bookTitle || 'Unknown Title'}</strong></td>
                         <td>${book.authors || 'N/A'}</td>
                         <td>${genre}</td>
                         <td>${category}</td>
-                        <td>${book.language || 'N/A'}</td>
+                        <td class="editable-language">${book.language || 'N/A'}</td>
+                        <td style="text-align: center;">
+                            <button class="edit-btn" onclick="toggleEditMode('${book.isbn}')"
+                                style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;">
+                                ✏️
+                            </button>
+                        </td>
                     </tr>
                 `;
             });
@@ -1366,6 +1397,154 @@
             slideText.textContent = 'Slide to Save All →';
             slideButton.style.left = '5px';
             slideBackground.style.width = '0%';
+        }
+
+        // Toggle edit mode for BookTitle and Language
+        function toggleEditMode(isbn) {
+            const row = document.getElementById('row-' + isbn);
+            if (!row) return;
+
+            const titleCell = row.querySelector('.editable-title');
+            const languageCell = row.querySelector('.editable-language');
+            const editBtn = row.querySelector('.edit-btn');
+
+            const isEditing = titleCell.classList.contains('editing');
+
+            if (isEditing) {
+                // Save mode - save the changes
+                saveISBNEdit(isbn, titleCell, languageCell, editBtn);
+            } else {
+                // Edit mode - make fields editable
+                enableEditMode(titleCell, languageCell, editBtn);
+            }
+        }
+
+        // Enable edit mode on cells
+        function enableEditMode(titleCell, languageCell, editBtn) {
+            // Store original values
+            const originalTitle = titleCell.textContent.trim();
+            const originalLanguage = languageCell.textContent.trim();
+
+            titleCell.dataset.original = originalTitle;
+            languageCell.dataset.original = originalLanguage;
+
+            // Make cells contenteditable
+            titleCell.contentEditable = true;
+            languageCell.contentEditable = true;
+
+            // Add editing class for styling
+            titleCell.classList.add('editing');
+            languageCell.classList.add('editing');
+
+            // Change icon to save
+            editBtn.textContent = '💾';
+            editBtn.style.color = '#2196F3';
+
+            // Focus on title field
+            titleCell.focus();
+
+            console.log('📝 Edit mode enabled for row');
+        }
+
+        // Save edited ISBN data back to ISBN_List
+        async function saveISBNEdit(isbn, titleCell, languageCell, editBtn) {
+            const newTitle = titleCell.textContent.trim();
+            const newLanguage = languageCell.textContent.trim();
+            const originalTitle = titleCell.dataset.original;
+            const originalLanguage = languageCell.dataset.original;
+
+            // Check if anything changed
+            if (newTitle === originalTitle && newLanguage === originalLanguage) {
+                // No changes, just exit edit mode
+                disableEditMode(titleCell, languageCell, editBtn);
+                return;
+            }
+
+            // Validate title is not empty
+            if (!newTitle || newTitle === '') {
+                showAlert('⚠️ Book Title cannot be empty!', 'error');
+                titleCell.textContent = originalTitle;
+                return;
+            }
+
+            // Disable edit mode first
+            disableEditMode(titleCell, languageCell, editBtn);
+
+            // Show saving indicator
+            editBtn.textContent = '⏳';
+            editBtn.style.color = '#FFA500';
+
+            const dataToSend = {
+                action: 'updateISBN',
+                isbn: isbn,
+                bookTitle: newTitle,
+                language: newLanguage
+            };
+
+            console.log('Updating ISBN entry:', dataToSend);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('Update result:', result);
+
+                if (result.success) {
+                    showAlert('✅ Book details updated successfully!', 'success');
+
+                    // Update the row's data attributes
+                    const row = titleCell.closest('tr');
+                    row.dataset.title = newTitle;
+                    row.dataset.language = newLanguage;
+
+                    // Reset icon to edit
+                    editBtn.textContent = '✏️';
+                    editBtn.style.color = '#2e8b57';
+                } else {
+                    showAlert('Failed: ' + result.message, 'error');
+
+                    // Revert to original values
+                    titleCell.textContent = originalTitle;
+                    languageCell.textContent = originalLanguage;
+
+                    // Reset icon to edit
+                    editBtn.textContent = '✏️';
+                    editBtn.style.color = '#2e8b57';
+                }
+            } catch (error) {
+                console.error('Error updating ISBN entry:', error);
+                showAlert('Error updating book details', 'error');
+
+                // Revert to original values
+                titleCell.textContent = originalTitle;
+                languageCell.textContent = originalLanguage;
+
+                // Reset icon to edit
+                editBtn.textContent = '✏️';
+                editBtn.style.color = '#2e8b57';
+            }
+        }
+
+        // Disable edit mode on cells
+        function disableEditMode(titleCell, languageCell, editBtn) {
+            // Remove contenteditable
+            titleCell.contentEditable = false;
+            languageCell.contentEditable = false;
+
+            // Remove editing class
+            titleCell.classList.remove('editing');
+            languageCell.classList.remove('editing');
+
+            // Change icon back to edit
+            editBtn.textContent = '✏️';
+            editBtn.style.color = '#2e8b57';
+
+            console.log('📝 Edit mode disabled');
         }
 
         // Initialize on page load
