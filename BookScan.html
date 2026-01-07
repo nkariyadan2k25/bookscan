@@ -859,7 +859,9 @@
                         publisher: bookInfo.publisher || 'N/A',
                         publishedDate: bookInfo.publishedDate || 'N/A',
                         categories: bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A',
-                        description: bookInfo.description || 'No description available'
+                        description: bookInfo.description || 'No description available',
+                        language: bookInfo.language ? bookInfo.language : "N/A"
+      
                     };
 
                     displayScannedBook(currentScannedBook);
@@ -876,7 +878,8 @@
                         publisher: 'N/A',
                         publishedDate: 'N/A',
                         categories: 'N/A',
-                        description: 'No information available for this ISBN'
+                        description: 'No information available for this ISBN',
+                        language: 'N/A'
                     };
                     displayScannedBook(currentScannedBook);
                 }
