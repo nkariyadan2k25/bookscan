@@ -993,6 +993,10 @@
             document.getElementById('scannedBookDetails').style.display = 'none';
         }
 
+        // Track pending saves for batch refresh
+        let pendingSaves = 0;
+        let refreshTimer = null;
+
         // Save to ISBN_List Sheet (Quick - with optimistic UI update)
         async function saveToISBNListQuick() {
             if (!currentScannedBook) {
@@ -1016,6 +1020,9 @@
             // Optimistic UI update - add to table immediately
             addBookToTableOptimistic(currentScannedBook);
 
+            // Track pending save
+            pendingSaves++;
+
             try {
                 // Save in background without blocking
                 const response = await fetch(API_URL, {
@@ -1029,7 +1036,7 @@
                 console.log('Save result:', result);
 
                 if (result.success) {
-                    console.log('✅ Book saved successfully');
+                    console.log('✅ Book saved successfully to Google Sheets');
                     // Update the optimistic row to confirmed state
                     confirmOptimisticBook(currentScannedBook.isbn);
                 } else {
@@ -1048,6 +1055,23 @@
                 // Remove the optimistic row
                 removeOptimisticBook(currentScannedBook.isbn);
                 showAlert('Error saving book', 'error');
+            } finally {
+                // Decrement pending saves
+                pendingSaves--;
+
+                // Schedule a refresh when all saves are complete
+                if (pendingSaves === 0) {
+                    // Clear any existing timer
+                    if (refreshTimer) {
+                        clearTimeout(refreshTimer);
+                    }
+
+                    // Refresh table after a short delay to sync with Google Sheets
+                    refreshTimer = setTimeout(() => {
+                        console.log('🔄 All saves complete, refreshing table from Google Sheets');
+                        loadISBNList();
+                    }, 1000); // Wait 1 second to ensure Google Sheets is updated
+                }
             }
         }
 
@@ -1117,7 +1141,14 @@
         // Load ISBN_List from Google Sheets
         async function loadISBNList() {
             const tableContainer = document.getElementById('isbnTableContainer');
-            tableContainer.innerHTML = '<div class="empty-grid-message">Loading...</div>';
+
+            // Don't clear the table during refresh - keep optimistic updates visible
+            const existingTable = tableContainer.querySelector('.isbn-table');
+            if (!existingTable) {
+                tableContainer.innerHTML = '<div class="empty-grid-message">Loading...</div>';
+            } else {
+                console.log('📥 Refreshing table data (keeping existing rows visible)...');
+            }
 
             const dataToSend = {
                 action: 'getISBNList'
