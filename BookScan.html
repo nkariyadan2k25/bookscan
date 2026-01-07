@@ -859,9 +859,7 @@
                         publisher: bookInfo.publisher || 'N/A',
                         publishedDate: bookInfo.publishedDate || 'N/A',
                         categories: bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A',
-                        description: bookInfo.description || 'No description available',
-                        language: bookInfo.language ? bookInfo.language : "N/A"
-      
+                        description: bookInfo.description || 'No description available'
                     };
 
                     displayScannedBook(currentScannedBook);
@@ -878,8 +876,7 @@
                         publisher: 'N/A',
                         publishedDate: 'N/A',
                         categories: 'N/A',
-                        description: 'No information available for this ISBN',
-                        language: 'N/A'
+                        description: 'No information available for this ISBN'
                     };
                     displayScannedBook(currentScannedBook);
                 }
@@ -897,7 +894,6 @@
             document.getElementById('scannedPublisher').textContent = book.publisher;
             document.getElementById('scannedPublishedDate').textContent = book.publishedDate;
             document.getElementById('scannedCategories').textContent = book.categories;
-            document.getElementById('scannedLanguage').textContent = book.language;
             document.getElementById('scannedDescription').textContent = book.description;
             document.getElementById('scannedBookDetails').style.display = 'block';
         }
@@ -928,8 +924,7 @@
                 authors: currentScannedBook.authors,
                 publisher: currentScannedBook.publisher,
                 publishedDate: currentScannedBook.publishedDate,
-                categories: currentScannedBook.categories,
-                lanaguage: currentScannedBook.lanaguage
+                categories: currentScannedBook.categories
             };
 
             console.log('Saving to ISBN_List:', dataToSend);
@@ -1059,7 +1054,6 @@
                             <th>Author</th>
                             <th>Genre</th>
                             <th>Category</th>
-                            <th>Language</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1086,7 +1080,6 @@
                         <td>${book.authors || 'N/A'}</td>
                         <td>${genre}</td>
                         <td>${category}</td>
-                        <td>${language}</td>
                     </tr>
                 `;
             });
