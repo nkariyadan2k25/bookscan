@@ -301,33 +301,31 @@
             padding: 8px !important;
         }
 
+        /* Initial state - glossy light grey */
         .slide-container {
             position: relative;
             width: 320px;
             height: 60px;
-            background: linear-gradient(180deg, #e8e8e8 0%, #d0d0d0 100%);
+            background: linear-gradient(180deg, #f5f5f5 0%, #e0e0e0 100%);
             border-radius: 30px;
             overflow: hidden;
-            box-shadow: inset 0 2px 6px rgba(0,0,0,0.25), 0 1px 0 rgba(255,255,255,0.5);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1),
+                        0 2px 10px rgba(0,0,0,0.15),
+                        0 0 15px rgba(255,255,255,0.5);
             touch-action: none;
             user-select: none;
-            border: 1px solid #c0c0c0;
+            border: 1px solid #d0d0d0;
             transition: all 0.4s ease;
         }
 
-        /* Active state - glossy light green */
-        .slide-container.active {
+        /* Active state - green arrow indicator only */
+        .slide-container.active .slide-button {
             background: linear-gradient(180deg, #90ee90 0%, #7bcf7b 100%);
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15),
-                        0 2px 10px rgba(46, 139, 87, 0.3),
-                        0 0 20px rgba(144, 238, 144, 0.4);
-            border: 1px solid #6bc46b;
-        }
-
-        .slide-container.active .slide-text {
+            box-shadow: 0 4px 15px rgba(46, 139, 87, 0.5),
+                        inset 0 2px 6px rgba(255,255,255,0.6),
+                        inset 0 -2px 6px rgba(46, 139, 87, 0.2);
+            border: 2px solid #6bc46b;
             color: #2d5a2d;
-            text-shadow: 0 1px 1px rgba(255,255,255,0.6);
-            font-weight: 700;
         }
 
         .slide-background {
@@ -347,11 +345,11 @@
             left: 5px;
             width: 50px;
             height: 50px;
-            background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
+            background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
             border-radius: 50%;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25),
-                        inset 0 2px 4px rgba(255,255,255,0.9),
-                        inset 0 -2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2),
+                        inset 0 2px 6px rgba(255,255,255,1),
+                        inset 0 -2px 4px rgba(0,0,0,0.08);
             cursor: grab;
             transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
             display: flex;
@@ -359,15 +357,18 @@
             justify-content: center;
             font-size: 22px;
             z-index: 2;
-            border: 2px solid #e0e0e0;
+            border: 2px solid #e8e8e8;
+            color: #888;
         }
 
+        /* Active state - green arrow (lit green button) */
         .slide-container.active .slide-button {
-            background: linear-gradient(180deg, #ffffff 0%, #f5fff5 100%);
-            box-shadow: 0 4px 15px rgba(46, 139, 87, 0.4),
-                        inset 0 2px 6px rgba(255,255,255,1),
-                        inset 0 -2px 6px rgba(144, 238, 144, 0.3);
-            border: 2px solid #90ee90;
+            background: linear-gradient(180deg, #90ee90 0%, #7bcf7b 100%);
+            box-shadow: 0 4px 15px rgba(46, 139, 87, 0.5),
+                        inset 0 2px 6px rgba(255,255,255,0.6),
+                        inset 0 -2px 6px rgba(46, 139, 87, 0.2);
+            border: 2px solid #6bc46b;
+            color: #2d5a2d;
         }
 
         .slide-button:active {
@@ -1278,6 +1279,9 @@
 
                             // After all animations, clear the view
                             setTimeout(() => {
+                                // Reset slider to initial glossy grey state before hiding
+                                resetSlideButton(slideContainer);
+
                                 document.getElementById('slideToSaveSection').style.display = 'none';
                                 loadISBNList(); // Reload to show empty message
 
@@ -1309,8 +1313,7 @@
 
         // Reset slide button helper function
         function resetSlideButton(slideContainer) {
-            slideContainer.classList.remove('unlocked', 'processing');
-            slideContainer.classList.add('active'); // Return to active green state
+            slideContainer.classList.remove('unlocked', 'processing', 'active');
             const slideButton = slideContainer.querySelector('.slide-button');
             const slideBackground = slideContainer.querySelector('.slide-background');
             const slideText = slideContainer.querySelector('.slide-text');
