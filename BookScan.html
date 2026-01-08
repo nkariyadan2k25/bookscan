@@ -605,6 +605,64 @@
             background-color: rgba(255, 255, 255, 0.3);
         }
 
+        /* Info icon and tooltip styles */
+        .info-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 16px;
+            margin-left: 6px;
+            cursor: help;
+            position: relative;
+            vertical-align: middle;
+        }
+
+        .info-icon:hover {
+            background-color: #1976D2;
+        }
+
+        .info-tooltip {
+            visibility: hidden;
+            position: absolute;
+            z-index: 1000;
+            background-color: #333;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            width: 320px;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-weight: normal;
+        }
+
+        .info-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .info-icon:hover .info-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -641,6 +699,20 @@
 
             #mainSlideButton .slide-text {
                 font-size: 12px;
+            }
+
+            /* Adjust tooltip for mobile */
+            .info-tooltip {
+                width: 250px;
+                font-size: 12px;
+                padding: 10px 12px;
+            }
+
+            .info-icon {
+                width: 14px;
+                height: 14px;
+                font-size: 10px;
+                line-height: 14px;
             }
         }
     </style>
@@ -1612,7 +1684,7 @@
                             <th>Genre</th>
                             <th>Category</th>
                             <th>Language</th>
-                            <th style="width: 60px; text-align: center;">Edit</th>
+                            <th style="width: 90px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1655,15 +1727,26 @@
                         data-language="${book.language || 'N/A'}"
                         id="row-${book.isbn}">
                         <td>${book.isbn || 'N/A'}</td>
-                        <td class="editable-title"><strong>${book.bookTitle || 'Unknown Title'}</strong></td>
+                        <td class="editable-title">
+                            <strong>${book.bookTitle || 'Unknown Title'}</strong>
+                            <span class="info-icon">i
+                                <span class="info-tooltip">Sometimes the BookTitle scanned data may not give specifics of the bookTitle fully, like Starts with series Name and Version of Plot or story title may be missing including volume number etc. Recommendation is to Edit and update if necessary to avoid duplicate BookTitleNames and bring clarity.</span>
+                            </span>
+                        </td>
                         <td>${book.authors || 'N/A'}</td>
                         <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
                         <td class="${categoryClass}">${category}${categoryIndicator}</td>
                         <td class="editable-language ${languageClass}">${book.language || 'N/A'}${languageIndicator}</td>
                         <td style="text-align: center;">
                             <button class="edit-btn" onclick="toggleEditMode('${book.isbn}')"
-                                style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;">
+                                style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;"
+                                title="Edit book details">
                                 ✏️
+                            </button>
+                            <button class="delete-btn" onclick="deleteISBNEntry('${book.isbn}')"
+                                style="background: none; border: none; cursor: pointer; font-size: 18px; color: #dc3545; padding: 5px;"
+                                title="Delete book from ISBN List">
+                                🗑️
                             </button>
                         </td>
                     </tr>
@@ -2346,7 +2429,7 @@
                                 <th>Genre</th>
                                 <th>Category</th>
                                 <th>Language</th>
-                                <th style="width: 60px; text-align: center;">Edit</th>
+                                <th style="width: 90px; text-align: center;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2402,7 +2485,12 @@
 
             newRow.innerHTML = `
                 <td>${book.isbn || 'N/A'}</td>
-                <td class="editable-title"><strong>${book.title || 'Unknown Title'}</strong></td>
+                <td class="editable-title">
+                    <strong>${book.title || 'Unknown Title'}</strong>
+                    <span class="info-icon">i
+                        <span class="info-tooltip">Sometimes the BookTitle scanned data may not give specifics of the bookTitle fully, like Starts with series Name and Version of Plot or story title may be missing including volume number etc. Recommendation is to Edit and update if necessary to avoid duplicate BookTitleNames and bring clarity.</span>
+                    </span>
+                </td>
                 <td>${book.authors || 'N/A'}</td>
                 <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
                 <td class="${categoryClass}">${category}${categoryIndicator}</td>
@@ -2434,12 +2522,18 @@
             row.classList.remove('optimistic-row');
             row.style.opacity = '1';
 
-            // Replace loading indicator with edit button
+            // Replace loading indicator with edit and delete buttons
             const editCell = row.querySelector('td:last-child');
             editCell.innerHTML = `
                 <button class="edit-btn" onclick="toggleEditMode('${isbn}')"
-                    style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;">
+                    style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;"
+                    title="Edit book details">
                     ✏️
+                </button>
+                <button class="delete-btn" onclick="deleteISBNEntry('${isbn}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 18px; color: #dc3545; padding: 5px;"
+                    title="Delete book from ISBN List">
+                    🗑️
                 </button>
             `;
 
@@ -2477,6 +2571,80 @@
             }, 300);
 
             console.log('❌ Removed optimistic book:', isbn);
+        }
+
+        // Delete ISBN entry from both UI and Google Sheets
+        async function deleteISBNEntry(isbn) {
+            // Show confirmation dialog
+            const row = document.getElementById('row-' + isbn);
+            if (!row) {
+                console.log('Row not found for ISBN:', isbn);
+                return;
+            }
+
+            const bookTitle = row.dataset.title || 'this book';
+
+            if (!confirm(`Are you sure you want to delete "${bookTitle}"?\n\nThis will remove it from the ISBN List permanently.`)) {
+                console.log('Delete cancelled by user');
+                return;
+            }
+
+            console.log('🗑️ Deleting ISBN entry:', isbn);
+
+            // Optimistically remove from UI with animation
+            row.style.animation = 'fadeOut 0.3s ease-in-out';
+
+            setTimeout(async () => {
+                // Remove the row from table
+                const table = document.querySelector('.isbn-table tbody');
+                row.remove();
+
+                // Update book count
+                const remainingRows = table ? table.querySelectorAll('tr').length : 0;
+                const bookCountEl = document.getElementById('bookCount');
+                if (bookCountEl) {
+                    bookCountEl.textContent = remainingRows;
+                }
+
+                // Hide slider if no books remain
+                if (remainingRows === 0) {
+                    const tableContainer = document.getElementById('isbnTableContainer');
+                    tableContainer.innerHTML = '<div class="empty-grid-message">No books saved yet. Scan a book to get started!</div>';
+                    document.getElementById('slideToSaveSection').style.display = 'none';
+                    console.log('✓ Last book deleted, table cleared');
+                }
+
+                console.log('✓ Row removed from UI, remaining books:', remainingRows);
+
+                // Delete from Google Sheets in background
+                try {
+                    const dataToSend = {
+                        action: 'deleteISBN',
+                        isbn: isbn
+                    };
+
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(dataToSend),
+                        redirect: 'follow'
+                    });
+
+                    const result = await response.json();
+                    console.log('Delete result:', result);
+
+                    if (result.success) {
+                        console.log('✅ Book deleted from Google Sheets successfully');
+                        showAlert('✅ Book deleted successfully!', 'success');
+                    } else {
+                        console.error('❌ Failed to delete from Google Sheets:', result.message);
+                        showAlert('⚠️ Book removed from view but may still exist in Google Sheets. Please refresh.', 'error');
+                    }
+                } catch (error) {
+                    console.error('❌ Error deleting from Google Sheets:', error);
+                    showAlert('⚠️ Book removed from view but deletion from Google Sheets failed. Please refresh.', 'error');
+                }
+            }, 300); // Wait for fade-out animation
         }
 
         // Initialize on page load
