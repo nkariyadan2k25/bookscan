@@ -523,6 +523,88 @@
             border-radius: 8px;
         }
 
+        /* Multi-select checkbox styles */
+        .multi-select-container {
+            border: 2px solid #2e8b57;
+            border-radius: 8px;
+            padding: 12px;
+            background-color: #f8f9fa;
+            margin-top: 5px;
+        }
+
+        .multi-select-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .multi-select-checkbox {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 6px 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            background-color: white;
+            transition: all 0.3s;
+            user-select: none;
+            font-size: 13px;
+        }
+
+        .multi-select-checkbox:hover {
+            border-color: #2e8b57;
+            background-color: #f0f9f4;
+        }
+
+        .multi-select-checkbox input[type="checkbox"] {
+            margin-right: 5px;
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+            accent-color: #2e8b57;
+        }
+
+        .multi-select-checkbox input[type="checkbox"]:checked + .checkbox-label {
+            font-weight: 600;
+            color: #2e8b57;
+        }
+
+        .multi-select-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-height: 25px;
+        }
+
+        .selected-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background-color: #2e8b57;
+            color: white;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .selected-tag .remove-tag {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 1;
+            padding: 0 3px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .selected-tag .remove-tag:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -1668,8 +1750,29 @@
                 const deltaX = currentX - startX;
                 const maxDistance = container.offsetWidth - slideButton.offsetWidth - 10;
 
-                // If slid more than 80%, trigger save
+                // If slid more than 80%, validate and trigger save
                 if (deltaX > maxDistance * 0.8) {
+                    // Validate: Check for errors or edit mode
+                    const hasErrors = document.querySelector('.invalid-field') !== null;
+                    const isEditing = document.querySelector('.editing') !== null;
+
+                    if (hasErrors) {
+                        showAlert('⚠️ Please fix all validation errors (red X) before saving!', 'error');
+                        // Reset slider
+                        slideButton.style.left = '5px';
+                        slideBackground.style.width = '0%';
+                        return;
+                    }
+
+                    if (isEditing) {
+                        showAlert('⚠️ Please save or cancel all edits (pen icon) before saving!', 'error');
+                        // Reset slider
+                        slideButton.style.left = '5px';
+                        slideBackground.style.width = '0%';
+                        return;
+                    }
+
+                    // All validations passed, proceed with save
                     container.classList.add('unlocked');
                     slideButton.textContent = '✓';
                     slideBackground.style.width = '100%';
@@ -1872,11 +1975,21 @@
                                   "French", "Arabic", "Chinese", "Japanese", "German", "Russian"];
 
         // Validation function - checks if value exists in allowed options
+        // Handles both single values and comma-separated values
         function isValidDropdownValue(value, options) {
             // Empty, 'N/A', or 'Unknown' are acceptable placeholders
             if (!value || value === 'N/A' || value === 'Unknown') {
                 return true;
             }
+
+            // Handle comma-separated values (for multi-select)
+            if (value.includes(',')) {
+                const values = value.split(',').map(v => v.trim()).filter(v => v);
+                // All values must be valid
+                return values.every(v => options.includes(v));
+            }
+
+            // Single value
             return options.includes(value.trim());
         }
 
@@ -1910,7 +2023,7 @@
             }
         }
 
-        // Create dropdown HTML
+        // Create dropdown HTML (for Language - single select)
         function createDropdown(options, currentValue, id) {
             let html = `<select id="${id}" style="width: 100%; padding: 8px; font-size: 14px; border: 2px solid #2e8b57; border-radius: 4px; background: #fff9e6;">`;
 
@@ -1928,13 +2041,96 @@
             return html;
         }
 
+        // Create multi-select dropdown HTML (for Genre and Category)
+        function createMultiSelectDropdown(options, currentValues, id, fieldName) {
+            // Parse current values (comma-separated)
+            const selectedValues = currentValues ? currentValues.split(',').map(v => v.trim()).filter(v => v && v !== 'N/A' && v !== 'Unknown') : [];
+
+            let html = `<div class="multi-select-container" id="${id}-container">`;
+            html += `<div class="multi-select-checkboxes">`;
+
+            // Create checkbox for each option
+            options.forEach(option => {
+                const isChecked = selectedValues.includes(option);
+                const checkboxId = `${id}-${option.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                html += `
+                    <label class="multi-select-checkbox">
+                        <input type="checkbox" id="${checkboxId}" value="${option}" ${isChecked ? 'checked' : ''}
+                            onchange="updateMultiSelectTags('${id}', '${fieldName}')">
+                        <span class="checkbox-label">${option}</span>
+                    </label>
+                `;
+            });
+
+            html += `</div>`;
+            html += `<div class="multi-select-tags" id="${id}-tags">`;
+
+            // Create tags for selected values
+            selectedValues.forEach(value => {
+                html += `
+                    <div class="selected-tag">
+                        <span>${value}</span>
+                        <span class="remove-tag" onclick="removeMultiSelectTag('${id}', '${value}', '${fieldName}')">&times;</span>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            html += `</div>`;
+
+            return html;
+        }
+
+        // Update multi-select tags when checkbox changes
+        function updateMultiSelectTags(id, fieldName) {
+            const container = document.getElementById(`${id}-container`);
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+            const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+            const tagsContainer = document.getElementById(`${id}-tags`);
+
+            // Clear existing tags
+            tagsContainer.innerHTML = '';
+
+            // Create tag for each selected value
+            selectedValues.forEach(value => {
+                const tag = document.createElement('div');
+                tag.className = 'selected-tag';
+                tag.innerHTML = `
+                    <span>${value}</span>
+                    <span class="remove-tag" onclick="removeMultiSelectTag('${id}', '${value}', '${fieldName}')">&times;</span>
+                `;
+                tagsContainer.appendChild(tag);
+            });
+        }
+
+        // Remove a tag from multi-select
+        function removeMultiSelectTag(id, value, fieldName) {
+            const container = document.getElementById(`${id}-container`);
+            const checkboxId = `${id}-${value.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            const checkbox = document.getElementById(checkboxId);
+
+            if (checkbox) {
+                checkbox.checked = false;
+                updateMultiSelectTags(id, fieldName);
+            }
+        }
+
+        // Get selected values from multi-select as comma-separated string
+        function getMultiSelectValues(id) {
+            const container = document.getElementById(`${id}-container`);
+            if (!container) return '';
+
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value).join(', ');
+        }
+
         // Enable edit mode on cells
         function enableEditMode(titleCell, genreCell, categoryCell, languageCell, editBtn, row) {
             // Store original values
             const originalTitle = titleCell.textContent.trim();
-            const originalGenre = genreCell.textContent.trim();
-            const originalCategory = categoryCell.textContent.trim();
-            const originalLanguage = languageCell.textContent.trim();
+            const originalGenre = genreCell.textContent.replace(/❌/g, '').trim(); // Remove validation error icon
+            const originalCategory = categoryCell.textContent.replace(/❌/g, '').trim();
+            const originalLanguage = languageCell.textContent.replace(/❌/g, '').trim();
 
             titleCell.dataset.original = originalTitle;
             genreCell.dataset.original = originalGenre;
@@ -1945,15 +2141,15 @@
             titleCell.contentEditable = true;
             titleCell.classList.add('editing');
 
-            // Replace Genre with dropdown
-            genreCell.innerHTML = createDropdown(GENRE_OPTIONS, originalGenre, 'genre-edit-' + row.dataset.isbn);
+            // Replace Genre with multi-select dropdown
+            genreCell.innerHTML = createMultiSelectDropdown(GENRE_OPTIONS, originalGenre, 'genre-edit-' + row.dataset.isbn, 'genre');
             genreCell.classList.add('editing');
 
-            // Replace Category with dropdown
-            categoryCell.innerHTML = createDropdown(CATEGORY_OPTIONS, originalCategory, 'category-edit-' + row.dataset.isbn);
+            // Replace Category with multi-select dropdown
+            categoryCell.innerHTML = createMultiSelectDropdown(CATEGORY_OPTIONS, originalCategory, 'category-edit-' + row.dataset.isbn, 'category');
             categoryCell.classList.add('editing');
 
-            // Replace Language with dropdown
+            // Replace Language with single-select dropdown
             languageCell.innerHTML = createDropdown(LANGUAGE_OPTIONS, originalLanguage, 'language-edit-' + row.dataset.isbn);
             languageCell.classList.add('editing');
 
@@ -1964,14 +2160,18 @@
             // Focus on title field
             titleCell.focus();
 
-            console.log('📝 Edit mode enabled for row with dropdowns');
+            console.log('📝 Edit mode enabled for row with multi-select dropdowns');
         }
 
         // Save edited ISBN data back to ISBN_List
         async function saveISBNEdit(isbn, titleCell, genreCell, categoryCell, languageCell, editBtn, row) {
             const newTitle = titleCell.textContent.trim();
-            const newGenre = document.getElementById('genre-edit-' + isbn)?.value || genreCell.dataset.original;
-            const newCategory = document.getElementById('category-edit-' + isbn)?.value || categoryCell.dataset.original;
+
+            // Get values from multi-select dropdowns (Genre and Category)
+            const newGenre = getMultiSelectValues('genre-edit-' + isbn) || genreCell.dataset.original;
+            const newCategory = getMultiSelectValues('category-edit-' + isbn) || categoryCell.dataset.original;
+
+            // Get value from single-select dropdown (Language)
             const newLanguage = document.getElementById('language-edit-' + isbn)?.value || languageCell.dataset.original;
 
             const originalTitle = titleCell.dataset.original;
@@ -2075,16 +2275,34 @@
             titleCell.contentEditable = false;
             titleCell.classList.remove('editing');
 
-            // Replace Genre dropdown with text
-            genreCell.innerHTML = `<strong>${newGenre}</strong>`;
+            // Validate and add indicators for Genre
+            const isGenreValid = isValidDropdownValue(newGenre, GENRE_OPTIONS);
+            const genreIndicator = getValidationIndicator(isGenreValid);
+            const genreClass = isGenreValid ? '' : 'invalid-field';
+
+            // Replace Genre multi-select with text (comma-separated)
+            genreCell.innerHTML = `<strong>${newGenre}</strong>${genreIndicator}`;
+            genreCell.className = genreClass; // Reset classes
             genreCell.classList.remove('editing');
 
-            // Replace Category dropdown with text
-            categoryCell.innerHTML = newCategory;
+            // Validate and add indicators for Category
+            const isCategoryValid = isValidDropdownValue(newCategory, CATEGORY_OPTIONS);
+            const categoryIndicator = getValidationIndicator(isCategoryValid);
+            const categoryClass = isCategoryValid ? '' : 'invalid-field';
+
+            // Replace Category multi-select with text (comma-separated)
+            categoryCell.innerHTML = newCategory + categoryIndicator;
+            categoryCell.className = categoryClass; // Reset classes
             categoryCell.classList.remove('editing');
 
+            // Validate and add indicators for Language
+            const isLanguageValid = isValidDropdownValue(newLanguage, LANGUAGE_OPTIONS);
+            const languageIndicator = getValidationIndicator(isLanguageValid);
+            const languageClass = isLanguageValid ? '' : 'invalid-field';
+
             // Replace Language dropdown with text
-            languageCell.innerHTML = newLanguage;
+            languageCell.innerHTML = newLanguage + languageIndicator;
+            languageCell.className = 'editable-language ' + languageClass; // Keep editable-language class
             languageCell.classList.remove('editing');
 
             // Change icon back to edit
