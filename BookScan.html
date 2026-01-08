@@ -608,19 +608,20 @@
         /* Info icon and tooltip styles */
         .info-icon {
             display: inline-block;
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             background-color: #2196F3;
             color: white;
             border-radius: 50%;
             text-align: center;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
-            line-height: 16px;
-            margin-left: 6px;
+            line-height: 18px;
+            margin-left: 8px;
             cursor: help;
             position: relative;
             vertical-align: middle;
+            transition: background-color 0.2s;
         }
 
         .info-icon:hover {
@@ -629,35 +630,38 @@
 
         .info-tooltip {
             visibility: hidden;
-            position: fixed;
+            position: absolute;
             z-index: 10000;
-            background-color: #333;
-            color: white;
-            padding: 15px 18px;
-            border-radius: 8px;
+            background-color: #2c3e50;
+            color: #ffffff;
+            padding: 16px 20px;
+            border-radius: 10px;
             font-size: 13px;
-            line-height: 1.7;
-            width: 380px;
-            max-width: 90vw;
-            bottom: auto;
-            left: auto;
+            line-height: 1.8;
+            width: 400px;
+            max-width: 85vw;
+            bottom: calc(100% + 12px);
+            left: 50%;
+            transform: translateX(-50%);
             opacity: 0;
-            transition: opacity 0.3s, visibility 0.3s;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             font-weight: normal;
             white-space: normal;
             word-wrap: break-word;
+            text-align: left;
             pointer-events: none;
         }
 
         .info-tooltip::after {
             content: "";
             position: absolute;
-            bottom: 100%;
-            left: 20px;
-            border-width: 6px;
+            top: 100%;
+            left: 50%;
+            margin-left: -8px;
+            border-width: 8px;
             border-style: solid;
-            border-color: transparent transparent #333 transparent;
+            border-color: #2c3e50 transparent transparent transparent;
         }
 
         .info-icon:hover .info-tooltip {
@@ -667,13 +671,28 @@
 
         /* Ensure table cells don't clip tooltip */
         .isbn-table td {
-            position: relative;
             overflow: visible;
         }
 
         .editable-title {
             position: relative;
-            overflow: visible;
+        }
+
+        /* Alternative positioning for tooltips that would go off screen */
+        @media (max-width: 768px) {
+            .info-tooltip {
+                width: 300px;
+                font-size: 12px;
+                padding: 12px 16px;
+                left: auto;
+                right: -10px;
+                transform: none;
+            }
+
+            .info-tooltip::after {
+                left: 30px;
+                margin-left: 0;
+            }
         }
 
         @media (max-width: 600px) {
@@ -714,19 +733,7 @@
                 font-size: 12px;
             }
 
-            /* Adjust tooltip for mobile */
-            .info-tooltip {
-                width: 250px;
-                font-size: 12px;
-                padding: 10px 12px;
-            }
-
-            .info-icon {
-                width: 14px;
-                height: 14px;
-                font-size: 10px;
-                line-height: 14px;
-            }
+            /* Mobile tooltip adjustments already handled above */
         }
     </style>
 </head>
@@ -2659,27 +2666,6 @@
                 }
             }, 300); // Wait for fade-out animation
         }
-
-        // Position tooltip dynamically based on icon location
-        document.addEventListener('mouseover', function(e) {
-            if (e.target.classList.contains('info-icon')) {
-                const tooltip = e.target.querySelector('.info-tooltip');
-                if (tooltip) {
-                    const iconRect = e.target.getBoundingClientRect();
-                    const tooltipRect = tooltip.getBoundingClientRect();
-
-                    // Position tooltip below the icon with some spacing
-                    tooltip.style.top = (iconRect.bottom + 10) + 'px';
-                    tooltip.style.left = Math.max(10, iconRect.left - 20) + 'px';
-
-                    // Ensure tooltip doesn't go off right edge of screen
-                    const rightEdge = tooltip.style.left.replace('px', '') * 1 + tooltipRect.width;
-                    if (rightEdge > window.innerWidth - 10) {
-                        tooltip.style.left = (window.innerWidth - tooltipRect.width - 10) + 'px';
-                    }
-                }
-            }
-        });
 
         // Initialize on page load
         window.addEventListener('load', () => {
