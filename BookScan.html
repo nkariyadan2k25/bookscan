@@ -319,6 +319,26 @@
             transition: transform 0.2s;
         }
 
+        /* Validation error styles */
+        .validation-error {
+            display: inline-block;
+            margin-left: 5px;
+            font-size: 16px;
+            cursor: help;
+            animation: pulse 2s infinite;
+        }
+
+        .invalid-field {
+            background: #ffe6e6 !important;
+            border-left: 3px solid #dc3545 !important;
+            position: relative;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
         /* Slide Button Container */
         .slide-button-cell {
             padding: 8px !important;
@@ -881,6 +901,130 @@
             }
         }
 
+        // Language mapping function - maps locale codes to full language names
+        function mapLanguage(localeCode) {
+            // Return 'English' as default if no input
+            if (!localeCode || localeCode.trim() === '' || localeCode === 'N/A') {
+                return 'English';
+            }
+
+            // Normalize the input to lowercase for consistent matching
+            const normalizedCode = localeCode.toLowerCase().trim();
+
+            console.log('🌍 Mapping language for locale:', localeCode);
+
+            // Language locale to full name mapping
+            const languageMap = {
+                // Indian Languages
+                'en': 'English',
+                'en-us': 'English',
+                'en-gb': 'English',
+                'hi': 'Hindi',
+                'bn': 'Bengali',
+                'ta': 'Tamil',
+                'te': 'Telugu',
+                'mr': 'Marathi',
+                'ur': 'Urdu',
+                'gu': 'Gujarati',
+                'kn': 'Kannada',
+                'ml': 'Malayalam',
+                // International Languages
+                'es': 'Spanish',
+                'fr': 'French',
+                'ar': 'Arabic',
+                'zh': 'Chinese',
+                'zh-cn': 'Chinese',
+                'zh-tw': 'Chinese',
+                'ja': 'Japanese',
+                'de': 'German',
+                'ru': 'Russian',
+                // Full names (in case API returns full names)
+                'english': 'English',
+                'hindi': 'Hindi',
+                'bengali': 'Bengali',
+                'tamil': 'Tamil',
+                'telugu': 'Telugu',
+                'marathi': 'Marathi',
+                'urdu': 'Urdu',
+                'gujarati': 'Gujarati',
+                'kannada': 'Kannada',
+                'malayalam': 'Malayalam',
+                'spanish': 'Spanish',
+                'french': 'French',
+                'arabic': 'Arabic',
+                'chinese': 'Chinese',
+                'japanese': 'Japanese',
+                'german': 'German',
+                'russian': 'Russian'
+            };
+
+            // Try exact match first
+            if (languageMap[normalizedCode]) {
+                console.log('✅ Language mapped:', localeCode, '→', languageMap[normalizedCode]);
+                return languageMap[normalizedCode];
+            }
+
+            // If no match found, return English as default
+            console.log('⚠️ No language match found for:', localeCode, '- defaulting to English');
+            return 'English';
+        }
+
+        // Category mapping function - maps Genre to Age Range Category
+        // Based on CategoryBestMap.txt logic
+        function mapCategory(genreValue) {
+            // Return 'N/A' if no genre provided
+            if (!genreValue || genreValue === 'Unknown' || genreValue === 'N/A') {
+                return 'N/A';
+            }
+
+            console.log('👶 Mapping category for genre:', genreValue);
+
+            // Category mapping rules from CategoryBestMap.txt
+            // Priority order matters - check from most specific to least specific
+
+            // Rule 1: Short-Story → 0 to 3 yrs
+            if (genreValue.includes('Short-Story')) {
+                console.log('✅ Category mapped:', genreValue, '→ 0 to 3 yrs');
+                return '0 to 3 yrs';
+            }
+
+            // Rule 2: Children's Specific or FairyTale → 3 to 7 yrs
+            if (genreValue.includes("Children's Specific") || genreValue.includes('FairyTale')) {
+                console.log('✅ Category mapped:', genreValue, '→ 3 to 7 yrs');
+                return '3 to 7 yrs';
+            }
+
+            // Rule 3: Mystery or Humour or Magical → 7 to 12 yrs
+            // Note: Children's Specific already handled above, so this catches other cases
+            if (genreValue.includes('Mystery') || genreValue.includes('Humour') || genreValue.includes('Magical')) {
+                console.log('✅ Category mapped:', genreValue, '→ 7 to 12 yrs');
+                return '7 to 12 yrs';
+            }
+
+            // Rule 4: Teen-Aged or Fiction or Sci-fi or Adventure or Thriller or Fantasy → 12 to 18 yrs
+            if (genreValue.includes('Teen-Aged') || genreValue.includes('Fiction') ||
+                genreValue.includes('Sci-fi') || genreValue.includes('Adventure') ||
+                genreValue.includes('Thriller') || genreValue.includes('Fantasy')) {
+                console.log('✅ Category mapped:', genreValue, '→ 12 to 18 yrs');
+                return '12 to 18 yrs';
+            }
+
+            // Rule 5: Adult content → 18 +
+            if (genreValue.includes('Historical Fiction') || genreValue.includes('Philosophical') ||
+                genreValue.includes('Motivational') || genreValue.includes('Memoir') ||
+                genreValue.includes('Biography') || genreValue.includes('Poetry') ||
+                genreValue.includes('Romance') || genreValue.includes('Classics') ||
+                genreValue.includes('Dystopian') || genreValue.includes('Contemporary') ||
+                genreValue.includes('Graphic') || genreValue.includes('Literary')) {
+                console.log('✅ Category mapped:', genreValue, '→ 18 +');
+                return '18 +';
+            }
+
+            // Default fallback for unmapped genres
+            console.log('⚠️ No category match found for genre:', genreValue, '- defaulting to N/A');
+            return 'N/A';
+        }
+
         // Genre mapping function - maps input categories to standardized genres
         function mapGenre(inputCategories) {
             // Return 'Unknown' if no input
@@ -1037,8 +1181,17 @@
                     // Get categories from API
                     const rawCategories = bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A';
 
+                    // Get language locale from API
+                    const rawLanguage = bookInfo.language || 'en';
+
                     // Map genre using the categories
                     const mappedGenre = mapGenre(rawCategories);
+
+                    // Map category (age range) based on mapped genre
+                    const mappedCategory = mapCategory(mappedGenre);
+
+                    // Map language locale to full language name
+                    const mappedLanguage = mapLanguage(rawLanguage);
 
                     currentScannedBook = {
                         isbn: isbn,
@@ -1048,11 +1201,14 @@
                         publishedDate: bookInfo.publishedDate || 'N/A',
                         categories: rawCategories,
                         genre: mappedGenre,  // Add mapped genre field
+                        category: mappedCategory,  // Add mapped category (age range)
                         description: bookInfo.description || 'No description available',
-                        language: bookInfo.language ? bookInfo.language : "N/A"
+                        language: mappedLanguage  // Use mapped language instead of raw
                     };
 
                     console.log('📚 Book genre mapped:', rawCategories, '→', mappedGenre);
+                    console.log('👶 Book category mapped:', mappedGenre, '→', mappedCategory);
+                    console.log('🌍 Book language mapped:', rawLanguage, '→', mappedLanguage);
 
                     // Validate book data before proceeding
                     if (!isValidBookData(currentScannedBook)) {
@@ -1150,7 +1306,7 @@
                 categories: currentScannedBook.categories,
                 language: currentScannedBook.language,
                 genre: currentScannedBook.genre || 'Unknown',
-                category: 'N/A'  // Default category, can be edited later
+                category: currentScannedBook.category || 'N/A'  // Use mapped category
             };
 
             console.log('⚡ Quick saving to ISBN_List:', dataToSend);
@@ -1236,7 +1392,7 @@
                 categories: currentScannedBook.categories,
                 language: currentScannedBook.language,
                 genre: currentScannedBook.genre || 'Unknown',
-                category: 'N/A'  // Default category, can be edited later
+                category: currentScannedBook.category || 'N/A'  // Use mapped category
             };
 
             console.log('Saving to ISBN_List:', dataToSend);
@@ -1386,11 +1542,25 @@
                 // Use mapped genre from database, fallback to first category if not available
                 const mappedGenre = book.genre || 'Unknown';
 
-                // Split categories for display
-                const categories = book.categories ? book.categories.split(',').map(c => c.trim()) : [];
-                const category = categories.slice(1).join(', ') || categories[0] || 'N/A';
+                // Get category from book object (Age Range)
+                const category = book.category || 'N/A';
 
                 console.log(`  - Mapped Genre: ${mappedGenre}, Category: ${category}`);
+
+                // Validate dropdown values
+                const isGenreValid = isValidDropdownValue(mappedGenre, GENRE_OPTIONS);
+                const isCategoryValid = isValidDropdownValue(category, CATEGORY_OPTIONS);
+                const isLanguageValid = isValidDropdownValue(book.language, LANGUAGE_OPTIONS);
+
+                // Add validation indicators
+                const genreIndicator = getValidationIndicator(isGenreValid);
+                const categoryIndicator = getValidationIndicator(isCategoryValid);
+                const languageIndicator = getValidationIndicator(isLanguageValid);
+
+                // Add invalid-field class if validation fails
+                const genreClass = isGenreValid ? '' : 'invalid-field';
+                const categoryClass = isCategoryValid ? '' : 'invalid-field';
+                const languageClass = isLanguageValid ? '' : 'invalid-field';
 
                 tableHTML += `
                     <tr data-isbn="${book.isbn}"
@@ -1403,9 +1573,9 @@
                         <td>${book.isbn || 'N/A'}</td>
                         <td class="editable-title"><strong>${book.bookTitle || 'Unknown Title'}</strong></td>
                         <td>${book.authors || 'N/A'}</td>
-                        <td><strong>${mappedGenre}</strong></td>
-                        <td>${category}</td>
-                        <td class="editable-language">${book.language || 'N/A'}</td>
+                        <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
+                        <td class="${categoryClass}">${category}${categoryIndicator}</td>
+                        <td class="editable-language ${languageClass}">${book.language || 'N/A'}${languageIndicator}</td>
                         <td style="text-align: center;">
                             <button class="edit-btn" onclick="toggleEditMode('${book.isbn}')"
                                 style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;">
@@ -1701,6 +1871,23 @@
                                   "Urdu", "Gujarati", "Kannada", "Malayalam", "Spanish",
                                   "French", "Arabic", "Chinese", "Japanese", "German", "Russian"];
 
+        // Validation function - checks if value exists in allowed options
+        function isValidDropdownValue(value, options) {
+            // Empty, 'N/A', or 'Unknown' are acceptable placeholders
+            if (!value || value === 'N/A' || value === 'Unknown') {
+                return true;
+            }
+            return options.includes(value.trim());
+        }
+
+        // Create validation indicator HTML
+        function getValidationIndicator(isValid) {
+            if (isValid) {
+                return '';
+            }
+            return '<span class="validation-error" title="Invalid value - click edit to fix">❌</span>';
+        }
+
         // Toggle edit mode for BookTitle, Genre, Category, and Language
         function toggleEditMode(isbn) {
             const row = document.getElementById('row-' + isbn);
@@ -1936,9 +2123,23 @@
             // Use mapped genre from book object
             const mappedGenre = book.genre || 'Unknown';
 
-            // Split categories for display
-            const categories = book.categories ? book.categories.split(',').map(c => c.trim()) : [];
-            const category = categories.slice(1).join(', ') || categories[0] || 'N/A';
+            // Get category from book (default to N/A)
+            const category = 'N/A';
+
+            // Validate dropdown values
+            const isGenreValid = isValidDropdownValue(mappedGenre, GENRE_OPTIONS);
+            const isCategoryValid = isValidDropdownValue(category, CATEGORY_OPTIONS);
+            const isLanguageValid = isValidDropdownValue(book.language, LANGUAGE_OPTIONS);
+
+            // Add validation indicators
+            const genreIndicator = getValidationIndicator(isGenreValid);
+            const categoryIndicator = getValidationIndicator(isCategoryValid);
+            const languageIndicator = getValidationIndicator(isLanguageValid);
+
+            // Add invalid-field class if validation fails
+            const genreClass = isGenreValid ? '' : 'invalid-field';
+            const categoryClass = isCategoryValid ? '' : 'invalid-field';
+            const languageClass = isLanguageValid ? '' : 'invalid-field';
 
             // Create new row with loading indicator
             const newRow = document.createElement('tr');
@@ -1956,9 +2157,9 @@
                 <td>${book.isbn || 'N/A'}</td>
                 <td class="editable-title"><strong>${book.title || 'Unknown Title'}</strong></td>
                 <td>${book.authors || 'N/A'}</td>
-                <td><strong>${mappedGenre}</strong></td>
-                <td>${category}</td>
-                <td class="editable-language">${book.language || 'N/A'}</td>
+                <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
+                <td class="${categoryClass}">${category}${categoryIndicator}</td>
+                <td class="editable-language ${languageClass}">${book.language || 'N/A'}${languageIndicator}</td>
                 <td style="text-align: center;">
                     <span style="color: #FFA500; font-size: 16px;">⏳</span>
                 </td>
