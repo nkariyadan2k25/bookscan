@@ -629,38 +629,51 @@
 
         .info-tooltip {
             visibility: hidden;
-            position: absolute;
-            z-index: 1000;
+            position: fixed;
+            z-index: 10000;
             background-color: #333;
             color: white;
-            padding: 12px 15px;
+            padding: 15px 18px;
             border-radius: 8px;
             font-size: 13px;
-            line-height: 1.6;
-            width: 320px;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
+            line-height: 1.7;
+            width: 380px;
+            max-width: 90vw;
+            bottom: auto;
+            left: auto;
             opacity: 0;
             transition: opacity 0.3s, visibility 0.3s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
             font-weight: normal;
+            white-space: normal;
+            word-wrap: break-word;
+            pointer-events: none;
         }
 
         .info-tooltip::after {
             content: "";
             position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
+            bottom: 100%;
+            left: 20px;
+            border-width: 6px;
             border-style: solid;
-            border-color: #333 transparent transparent transparent;
+            border-color: transparent transparent #333 transparent;
         }
 
         .info-icon:hover .info-tooltip {
             visibility: visible;
             opacity: 1;
+        }
+
+        /* Ensure table cells don't clip tooltip */
+        .isbn-table td {
+            position: relative;
+            overflow: visible;
+        }
+
+        .editable-title {
+            position: relative;
+            overflow: visible;
         }
 
         @media (max-width: 600px) {
@@ -2646,6 +2659,27 @@
                 }
             }, 300); // Wait for fade-out animation
         }
+
+        // Position tooltip dynamically based on icon location
+        document.addEventListener('mouseover', function(e) {
+            if (e.target.classList.contains('info-icon')) {
+                const tooltip = e.target.querySelector('.info-tooltip');
+                if (tooltip) {
+                    const iconRect = e.target.getBoundingClientRect();
+                    const tooltipRect = tooltip.getBoundingClientRect();
+
+                    // Position tooltip below the icon with some spacing
+                    tooltip.style.top = (iconRect.bottom + 10) + 'px';
+                    tooltip.style.left = Math.max(10, iconRect.left - 20) + 'px';
+
+                    // Ensure tooltip doesn't go off right edge of screen
+                    const rightEdge = tooltip.style.left.replace('px', '') * 1 + tooltipRect.width;
+                    if (rightEdge > window.innerWidth - 10) {
+                        tooltip.style.left = (window.innerWidth - tooltipRect.width - 10) + 'px';
+                    }
+                }
+            }
+        });
 
         // Initialize on page load
         window.addEventListener('load', () => {
