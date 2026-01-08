@@ -2376,24 +2376,17 @@
             const mappedGenre = book.genre || 'Unknown';
 
             // Get category from book (default to N/A)
-            const category = 'N/A';
+            const category = book.category || 'N/A';
 
-            // Validate dropdown values
-            // Genre and Category: strict validation (no placeholders allowed)
-            const isGenreValid = isValidDropdownValue(mappedGenre, GENRE_OPTIONS, false);
-            const isCategoryValid = isValidDropdownValue(category, CATEGORY_OPTIONS, false);
-            // Language: allow placeholders
-            const isLanguageValid = isValidDropdownValue(book.language, LANGUAGE_OPTIONS, true);
+            // Skip validation during optimistic add
+            // Validation will run after background save completes and table refreshes from Google Sheets
+            const genreIndicator = '';
+            const categoryIndicator = '';
+            const languageIndicator = '';
 
-            // Add validation indicators
-            const genreIndicator = getValidationIndicator(isGenreValid);
-            const categoryIndicator = getValidationIndicator(isCategoryValid);
-            const languageIndicator = getValidationIndicator(isLanguageValid);
-
-            // Add invalid-field class if validation fails
-            const genreClass = isGenreValid ? '' : 'invalid-field';
-            const categoryClass = isCategoryValid ? '' : 'invalid-field';
-            const languageClass = isLanguageValid ? '' : 'invalid-field';
+            const genreClass = '';
+            const categoryClass = '';
+            const languageClass = '';
 
             // Create new row with loading indicator
             const newRow = document.createElement('tr');
