@@ -1630,9 +1630,11 @@
                 console.log(`  - Mapped Genre: ${mappedGenre}, Category: ${category}`);
 
                 // Validate dropdown values
-                const isGenreValid = isValidDropdownValue(mappedGenre, GENRE_OPTIONS);
-                const isCategoryValid = isValidDropdownValue(category, CATEGORY_OPTIONS);
-                const isLanguageValid = isValidDropdownValue(book.language, LANGUAGE_OPTIONS);
+                // Genre and Category: strict validation (no placeholders allowed)
+                const isGenreValid = isValidDropdownValue(mappedGenre, GENRE_OPTIONS, false);
+                const isCategoryValid = isValidDropdownValue(category, CATEGORY_OPTIONS, false);
+                // Language: allow placeholders
+                const isLanguageValid = isValidDropdownValue(book.language, LANGUAGE_OPTIONS, true);
 
                 // Add validation indicators
                 const genreIndicator = getValidationIndicator(isGenreValid);
@@ -1976,17 +1978,30 @@
 
         // Validation function - checks if value exists in allowed options
         // Handles both single values and comma-separated values
-        function isValidDropdownValue(value, options) {
-            // Empty, 'N/A', or 'Unknown' are acceptable placeholders
-            if (!value || value === 'N/A' || value === 'Unknown') {
-                return true;
+        // allowPlaceholders: if true, accepts 'N/A' and 'Unknown' as valid (for Language)
+        //                    if false, requires actual values from options (for Genre and Category)
+        function isValidDropdownValue(value, options, allowPlaceholders = true) {
+            // Empty value handling
+            if (!value) {
+                return allowPlaceholders;
+            }
+
+            // Placeholder handling - only accept if allowPlaceholders is true
+            if (value === 'N/A' || value === 'Unknown') {
+                return allowPlaceholders;
             }
 
             // Handle comma-separated values (for multi-select)
             if (value.includes(',')) {
                 const values = value.split(',').map(v => v.trim()).filter(v => v);
                 // All values must be valid
-                return values.every(v => options.includes(v));
+                return values.every(v => {
+                    // Check for placeholders in individual values
+                    if ((v === 'N/A' || v === 'Unknown') && !allowPlaceholders) {
+                        return false;
+                    }
+                    return options.includes(v);
+                });
             }
 
             // Single value
@@ -2275,8 +2290,8 @@
             titleCell.contentEditable = false;
             titleCell.classList.remove('editing');
 
-            // Validate and add indicators for Genre
-            const isGenreValid = isValidDropdownValue(newGenre, GENRE_OPTIONS);
+            // Validate and add indicators for Genre (strict - no placeholders)
+            const isGenreValid = isValidDropdownValue(newGenre, GENRE_OPTIONS, false);
             const genreIndicator = getValidationIndicator(isGenreValid);
             const genreClass = isGenreValid ? '' : 'invalid-field';
 
@@ -2285,8 +2300,8 @@
             genreCell.className = genreClass; // Reset classes
             genreCell.classList.remove('editing');
 
-            // Validate and add indicators for Category
-            const isCategoryValid = isValidDropdownValue(newCategory, CATEGORY_OPTIONS);
+            // Validate and add indicators for Category (strict - no placeholders)
+            const isCategoryValid = isValidDropdownValue(newCategory, CATEGORY_OPTIONS, false);
             const categoryIndicator = getValidationIndicator(isCategoryValid);
             const categoryClass = isCategoryValid ? '' : 'invalid-field';
 
@@ -2295,8 +2310,8 @@
             categoryCell.className = categoryClass; // Reset classes
             categoryCell.classList.remove('editing');
 
-            // Validate and add indicators for Language
-            const isLanguageValid = isValidDropdownValue(newLanguage, LANGUAGE_OPTIONS);
+            // Validate and add indicators for Language (allow placeholders)
+            const isLanguageValid = isValidDropdownValue(newLanguage, LANGUAGE_OPTIONS, true);
             const languageIndicator = getValidationIndicator(isLanguageValid);
             const languageClass = isLanguageValid ? '' : 'invalid-field';
 
@@ -2315,16 +2330,35 @@
         // Add book to table optimistically (before save confirmation)
         function addBookToTableOptimistic(book) {
             const tableContainer = document.getElementById('isbnTableContainer');
-            const table = tableContainer.querySelector('.isbn-table tbody');
+            let table = tableContainer.querySelector('.isbn-table tbody');
 
             if (!table) {
-                // Table doesn't exist yet, create it
-                const slideSection = document.getElementById('slideToSaveSection');
-                if (slideSection) {
-                    slideSection.style.display = 'block';
-                }
-                loadISBNList(); // This will create the table structure
-                return;
+                // Table doesn't exist yet, create an empty table structure
+                console.log('📊 Creating empty table structure for first book');
+
+                const tableHTML = `
+                    <table class="isbn-table">
+                        <thead>
+                            <tr>
+                                <th>ISBN</th>
+                                <th>Book Title</th>
+                                <th>Author</th>
+                                <th>Genre</th>
+                                <th>Category</th>
+                                <th>Language</th>
+                                <th style="width: 60px; text-align: center;">Edit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                `;
+
+                tableContainer.innerHTML = tableHTML;
+                table = tableContainer.querySelector('.isbn-table tbody');
+
+                // Don't show slider yet - wait until first book is added
+                console.log('✓ Empty table created, will add first book now');
             }
 
             // Check if book already exists
@@ -2345,9 +2379,11 @@
             const category = 'N/A';
 
             // Validate dropdown values
-            const isGenreValid = isValidDropdownValue(mappedGenre, GENRE_OPTIONS);
-            const isCategoryValid = isValidDropdownValue(category, CATEGORY_OPTIONS);
-            const isLanguageValid = isValidDropdownValue(book.language, LANGUAGE_OPTIONS);
+            // Genre and Category: strict validation (no placeholders allowed)
+            const isGenreValid = isValidDropdownValue(mappedGenre, GENRE_OPTIONS, false);
+            const isCategoryValid = isValidDropdownValue(category, CATEGORY_OPTIONS, false);
+            // Language: allow placeholders
+            const isLanguageValid = isValidDropdownValue(book.language, LANGUAGE_OPTIONS, true);
 
             // Add validation indicators
             const genreIndicator = getValidationIndicator(isGenreValid);
@@ -2387,20 +2423,14 @@
             table.insertBefore(newRow, table.firstChild);
             newRow.style.animation = 'flashIn 0.3s ease-in-out';
 
-            // Update book count
+            // Update book count (but don't show slider yet - wait for backend confirmation)
             const bookCount = table.querySelectorAll('tr').length;
-            const bookCountEl = document.getElementById('bookCount');
-            if (bookCountEl) {
-                bookCountEl.textContent = bookCount;
-            }
+            console.log('📊 Current optimistic book count:', bookCount);
 
-            // Show slide section if hidden
-            const slideSection = document.getElementById('slideToSaveSection');
-            if (slideSection) {
-                slideSection.style.display = 'block';
-            }
+            // Don't show slider during optimistic add
+            // Slider will appear only after first book is saved and loaded from Google Sheets
 
-            console.log('✨ Added book to table optimistically');
+            console.log('✨ Added book to table optimistically (slider hidden until backend save confirms)');
         }
 
         // Confirm optimistic book after successful save
