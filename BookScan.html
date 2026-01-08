@@ -296,6 +296,29 @@
             border-bottom: none;
         }
 
+        /* Editable cells */
+        .editable-title, .editable-language {
+            transition: all 0.3s ease;
+        }
+
+        .editable-title.editing, .editable-language.editing {
+            background: #fff9e6;
+            border: 2px solid #2e8b57;
+            border-radius: 4px;
+            padding: 8px;
+            outline: none;
+        }
+
+        .editable-title.editing:focus, .editable-language.editing:focus {
+            background: #fffef0;
+            box-shadow: 0 0 5px rgba(46, 139, 87, 0.3);
+        }
+
+        .edit-btn:hover {
+            transform: scale(1.2);
+            transition: transform 0.2s;
+        }
+
         /* Slide Button Container */
         .slide-button-cell {
             padding: 8px !important;
@@ -459,6 +482,16 @@
             0% { transform: scale(1); }
             50% { transform: scale(1.02); }
             100% { transform: scale(1); }
+        }
+
+        @keyframes flashIn {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
         .empty-grid-message {
@@ -670,6 +703,9 @@
         let currentScannedBook = null;
         let isScannerActive = false;
 
+        // Cache for Google Books API responses (speeds up duplicate scans)
+        const bookCache = new Map();
+
         // Check if running in iframe
         function isInIframe() {
             try {
@@ -845,55 +881,236 @@
             }
         }
 
-        // Fetch Book Details from Google Books API
+        // Genre mapping function - maps input categories to standardized genres
+        function mapGenre(inputCategories) {
+            // Return 'Unknown' if no input
+            if (!inputCategories || inputCategories.trim() === '' || inputCategories === 'N/A') {
+                return 'Unknown';
+            }
+
+            // Normalize the input to lowercase for consistent matching
+            const normalizedInput = inputCategories.toLowerCase().trim();
+
+            console.log('🎭 Mapping genre for categories:', inputCategories);
+
+            // Genre mapping table based on GenreBestMatch.txt
+            const genreMap = {
+                'fiction': 'Fiction',
+                'novel': 'Fiction',
+                'fantasy': 'Fantasy',
+                'horror': 'Horror',
+                'romance': 'Romance',
+                'love': 'Romance',
+                'graphic': 'Graphic',
+                'literary': 'Literary',
+                'literature': 'Literary',
+                'adventure': 'Adventure',
+                'short': 'Short-Story',
+                'short story': 'Short-Story',
+                'dystopian': 'Dystopian',
+                'contemporary': 'Contemporary',
+                'traditional': 'Contemporary',
+                'fairy': 'FairyTale',
+                'fairy tale': 'FairyTale',
+                'poem': 'Poetry',
+                'poetry': 'Poetry',
+                'classic': 'Classics',
+                'classical': 'Classics',
+                'humor': 'Humour',
+                'humour': 'Humour',
+                'joke': 'Humour',
+                'fun': 'Humour',
+                'comic': 'Humour',
+                'comedy': 'Humour',
+                'magic': 'Magical',
+                'philosophy': 'Philosophical',
+                'philosophical': 'Philosophical',
+                'motivational': 'Motivational',
+                'scifi': 'Sci-fi',
+                'sci-fi': 'Sci-fi',
+                'science fiction': 'Sci-fi',
+                'historical': 'Historical Fiction',
+                'history': 'Historical Fiction',
+                'childrens': 'Children\'s Specific',
+                'children': 'Children\'s Specific',
+                'kids': 'Children\'s Specific',
+                'juvenile': 'Children\'s Specific',
+                'teenaged': 'Teen-Aged',
+                'teen': 'Teen-Aged',
+                'ya': 'Teen-Aged',
+                'young adult': 'Teen-Aged',
+                'mystery': 'Mystery',
+                'thriller': 'Thriller',
+                'suspense': 'Thriller',
+                'nonfiction': 'Non-Fiction',
+                'non-fiction': 'Non-Fiction',
+                'biography': 'Biography',
+                'biographical': 'Biography',
+                'memoir': 'Memoir',
+                'autofiction': 'Memoir',
+                'autobiography': 'Memoir'
+            };
+
+            // Try exact match first
+            if (genreMap[normalizedInput]) {
+                console.log('✅ Exact match found:', genreMap[normalizedInput]);
+                return genreMap[normalizedInput];
+            }
+
+            // Try to find matches using regex (search for keywords within the input)
+            let bestMatch = null;
+            let longestMatch = 0;
+
+            for (const [keyword, genre] of Object.entries(genreMap)) {
+                // Create regex to match whole word boundaries
+                const regex = new RegExp('\\b' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+
+                if (regex.test(normalizedInput)) {
+                    // Prioritize longer matches (more specific)
+                    if (keyword.length > longestMatch) {
+                        longestMatch = keyword.length;
+                        bestMatch = genre;
+                    }
+                }
+            }
+
+            if (bestMatch) {
+                console.log('✅ Regex match found:', bestMatch);
+                return bestMatch;
+            }
+
+            // If no match found, return Unknown
+            console.log('⚠️ No genre match found, returning Unknown');
+            return 'Unknown';
+        }
+
+        // Validate book data has required fields
+        function isValidBookData(book) {
+            // Check if title exists and is not empty or 'N/A'
+            const hasValidTitle = book.title &&
+                                  book.title.trim() !== '' &&
+                                  book.title !== 'N/A' &&
+                                  book.title !== 'Not Found';
+
+            // Check if authors exist and are not empty or 'N/A'
+            const hasValidAuthor = book.authors &&
+                                   book.authors.trim() !== '' &&
+                                   book.authors !== 'N/A';
+
+            return hasValidTitle && hasValidAuthor;
+        }
+
+        // Fetch Book Details from Google Books API (with caching)
         async function fetchBookDetails(isbn) {
+            console.log('⚡ Fetching book details for ISBN:', isbn);
+            const startTime = performance.now();
+
+            // Check cache first for instant response
+            if (bookCache.has(isbn)) {
+                console.log('✨ Using cached data for ISBN:', isbn);
+                currentScannedBook = bookCache.get(isbn);
+
+                // Validate cached data
+                if (!isValidBookData(currentScannedBook)) {
+                    console.error('❌ Cached book has invalid data, not saving');
+                    showAlert('⚠️ ISBN could not load valid book details from the book scanner API. Missing title or author information.', 'error');
+                    return;
+                }
+
+                displayScannedBookQuick(currentScannedBook);
+                await saveToISBNListQuick();
+                return;
+            }
+
             const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
 
             try {
                 const response = await fetch(apiUrl);
                 const data = await response.json();
 
+                const fetchTime = performance.now() - startTime;
+                console.log(`⏱️ API response time: ${fetchTime.toFixed(0)}ms`);
+
                 if (data.items && data.items.length > 0) {
                     const bookInfo = data.items[0].volumeInfo;
 
+                    // Get categories from API
+                    const rawCategories = bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A';
+
+                    // Map genre using the categories
+                    const mappedGenre = mapGenre(rawCategories);
+
                     currentScannedBook = {
                         isbn: isbn,
-                        title: bookInfo.title || 'N/A',
-                        authors: bookInfo.authors ? bookInfo.authors.join(', ') : 'N/A',
+                        title: bookInfo.title || '',
+                        authors: bookInfo.authors ? bookInfo.authors.join(', ') : '',
                         publisher: bookInfo.publisher || 'N/A',
                         publishedDate: bookInfo.publishedDate || 'N/A',
-                        categories: bookInfo.categories ? bookInfo.categories.join(', ') : 'N/A',
+                        categories: rawCategories,
+                        genre: mappedGenre,  // Add mapped genre field
                         description: bookInfo.description || 'No description available',
                         language: bookInfo.language ? bookInfo.language : "N/A"
-      
                     };
 
-                    displayScannedBook(currentScannedBook);
-                    showAlert('Book details retrieved!', 'success');
+                    console.log('📚 Book genre mapped:', rawCategories, '→', mappedGenre);
 
-                    // Auto-save to ISBN_List
-                    await saveToISBNList();
+                    // Validate book data before proceeding
+                    if (!isValidBookData(currentScannedBook)) {
+                        console.error('❌ Book data is invalid - missing title or author');
+                        showAlert('⚠️ ISBN could not load valid book details from the book scanner API. Missing title or author information.', 'error');
+                        currentScannedBook = null;
+                        return;
+                    }
+
+                    // Cache the result for future scans (only if valid)
+                    bookCache.set(isbn, currentScannedBook);
+
+                    displayScannedBookQuick(currentScannedBook);
+                    await saveToISBNListQuick();
                 } else {
-                    showAlert('No book details found for ISBN: ' + isbn, 'error');
-                    currentScannedBook = {
-                        isbn: isbn,
-                        title: 'Not Found',
-                        authors: 'N/A',
-                        publisher: 'N/A',
-                        publishedDate: 'N/A',
-                        categories: 'N/A',
-                        description: 'No information available for this ISBN',
-                        language: 'N/A'
-                    };
-                    displayScannedBook(currentScannedBook);
+                    // No book found in API
+                    console.error('❌ No book details found for ISBN:', isbn);
+                    showAlert('⚠️ ISBN could not load valid book details from the book scanner API. No book found for this ISBN.', 'error');
+                    currentScannedBook = null;
                 }
             } catch (error) {
                 console.error('Error fetching book details:', error);
-                showAlert('Error fetching book details', 'error');
+                showAlert('⚠️ Error connecting to book scanner API. Please try again.', 'error');
+                currentScannedBook = null;
             }
+
+            const totalTime = performance.now() - startTime;
+            console.log(`✅ Total processing time: ${totalTime.toFixed(0)}ms`);
         }
 
-        // Display Scanned Book
+        // Display Scanned Book (Quick - flashes for 1.5 seconds then auto-hides)
+        function displayScannedBookQuick(book) {
+            document.getElementById('scannedISBN').textContent = book.isbn;
+            document.getElementById('scannedBookTitle').textContent = book.title;
+            document.getElementById('scannedAuthor').textContent = book.authors;
+            document.getElementById('scannedPublisher').textContent = book.publisher;
+            document.getElementById('scannedPublishedDate').textContent = book.publishedDate;
+            document.getElementById('scannedCategories').textContent = book.categories;
+            document.getElementById('scannedLanguage').textContent = book.language;
+            document.getElementById('scannedDescription').textContent = book.description;
+
+            const detailsEl = document.getElementById('scannedBookDetails');
+            detailsEl.style.display = 'block';
+
+            // Add flash animation
+            detailsEl.style.animation = 'flashIn 0.3s ease-in-out';
+
+            // Auto-hide after 1.5 seconds
+            setTimeout(() => {
+                detailsEl.style.animation = 'fadeOut 0.3s ease-in-out';
+                setTimeout(() => {
+                    detailsEl.style.display = 'none';
+                    detailsEl.style.animation = '';
+                }, 300);
+            }, 1500);
+        }
+
+        // Display Scanned Book (original - for manual viewing)
         function displayScannedBook(book) {
             document.getElementById('scannedISBN').textContent = book.isbn;
             document.getElementById('scannedBookTitle').textContent = book.title;
@@ -912,7 +1129,90 @@
             document.getElementById('scannedBookDetails').style.display = 'none';
         }
 
-        // Save to ISBN_List Sheet
+        // Track pending saves for batch refresh
+        let pendingSaves = 0;
+        let refreshTimer = null;
+
+        // Save to ISBN_List Sheet (Quick - with optimistic UI update)
+        async function saveToISBNListQuick() {
+            if (!currentScannedBook) {
+                console.log('No book data to save');
+                return;
+            }
+
+            const dataToSend = {
+                action: 'addISBN',
+                isbn: currentScannedBook.isbn,
+                bookTitle: currentScannedBook.title,
+                authors: currentScannedBook.authors,
+                publisher: currentScannedBook.publisher,
+                publishedDate: currentScannedBook.publishedDate,
+                categories: currentScannedBook.categories,
+                language: currentScannedBook.language,
+                genre: currentScannedBook.genre || 'Unknown'
+            };
+
+            console.log('⚡ Quick saving to ISBN_List:', dataToSend);
+
+            // Optimistic UI update - add to table immediately
+            addBookToTableOptimistic(currentScannedBook);
+
+            // Track pending save
+            pendingSaves++;
+
+            try {
+                // Save in background without blocking
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('Save result:', result);
+
+                if (result.success) {
+                    console.log('✅ Book saved successfully to Google Sheets');
+                    // Update the optimistic row to confirmed state
+                    confirmOptimisticBook(currentScannedBook.isbn);
+                } else {
+                    if (result.message.includes('already exists')) {
+                        console.log('Book already exists, keeping optimistic update');
+                        confirmOptimisticBook(currentScannedBook.isbn);
+                    } else {
+                        console.error('Save failed:', result.message);
+                        // Remove the optimistic row
+                        removeOptimisticBook(currentScannedBook.isbn);
+                        showAlert('Failed: ' + result.message, 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Error saving:', error);
+                // Remove the optimistic row
+                removeOptimisticBook(currentScannedBook.isbn);
+                showAlert('Error saving book', 'error');
+            } finally {
+                // Decrement pending saves
+                pendingSaves--;
+
+                // Schedule a refresh when all saves are complete
+                if (pendingSaves === 0) {
+                    // Clear any existing timer
+                    if (refreshTimer) {
+                        clearTimeout(refreshTimer);
+                    }
+
+                    // Refresh table after a short delay to sync with Google Sheets
+                    refreshTimer = setTimeout(() => {
+                        console.log('🔄 All saves complete, refreshing table from Google Sheets');
+                        loadISBNList();
+                    }, 1000); // Wait 1 second to ensure Google Sheets is updated
+                }
+            }
+        }
+
+        // Save to ISBN_List Sheet (original - for manual saves)
         async function saveToISBNList() {
             if (!currentScannedBook) {
                 console.log('No book data to save');
@@ -933,7 +1233,8 @@
                 publisher: currentScannedBook.publisher,
                 publishedDate: currentScannedBook.publishedDate,
                 categories: currentScannedBook.categories,
-                language: currentScannedBook.language
+                language: currentScannedBook.language,
+                genre: currentScannedBook.genre || 'Unknown'
             };
 
             console.log('Saving to ISBN_List:', dataToSend);
@@ -978,7 +1279,14 @@
         // Load ISBN_List from Google Sheets
         async function loadISBNList() {
             const tableContainer = document.getElementById('isbnTableContainer');
-            tableContainer.innerHTML = '<div class="empty-grid-message">Loading...</div>';
+
+            // Don't clear the table during refresh - keep optimistic updates visible
+            const existingTable = tableContainer.querySelector('.isbn-table');
+            if (!existingTable) {
+                tableContainer.innerHTML = '<div class="empty-grid-message">Loading...</div>';
+            } else {
+                console.log('📥 Refreshing table data (keeping existing rows visible)...');
+            }
 
             const dataToSend = {
                 action: 'getISBNList'
@@ -1064,6 +1372,7 @@
                             <th>Genre</th>
                             <th>Category</th>
                             <th>Language</th>
+                            <th style="width: 60px; text-align: center;">Edit</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1072,26 +1381,35 @@
             sortedBooks.forEach((book, index) => {
                 console.log(`Book ${index + 1}:`, book);
 
-                // Split categories into genre and category (if available)
+                // Use mapped genre from database, fallback to first category if not available
+                const mappedGenre = book.genre || 'Unknown';
+
+                // Split categories for display
                 const categories = book.categories ? book.categories.split(',').map(c => c.trim()) : [];
-                const genre = categories[0] || 'N/A';
                 const category = categories.slice(1).join(', ') || categories[0] || 'N/A';
 
-                console.log(`  - Genre: ${genre}, Category: ${category}`);
+                console.log(`  - Mapped Genre: ${mappedGenre}, Category: ${category}`);
 
                 tableHTML += `
                     <tr data-isbn="${book.isbn}"
                         data-title="${book.bookTitle || 'Unknown Title'}"
                         data-author="${book.authors || 'N/A'}"
-                        data-genre="${genre}"
+                        data-genre="${mappedGenre}"
                         data-category="${category}"
-                        data-language="${book.language || 'N/A'}">
+                        data-language="${book.language || 'N/A'}"
+                        id="row-${book.isbn}">
                         <td>${book.isbn || 'N/A'}</td>
-                        <td><strong>${book.bookTitle || 'Unknown Title'}</strong></td>
+                        <td class="editable-title"><strong>${book.bookTitle || 'Unknown Title'}</strong></td>
                         <td>${book.authors || 'N/A'}</td>
-                        <td>${genre}</td>
+                        <td><strong>${mappedGenre}</strong></td>
                         <td>${category}</td>
-                        <td>${book.language || 'N/A'}</td>
+                        <td class="editable-language">${book.language || 'N/A'}</td>
+                        <td style="text-align: center;">
+                            <button class="edit-btn" onclick="toggleEditMode('${book.isbn}')"
+                                style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;">
+                                ✏️
+                            </button>
+                        </td>
                     </tr>
                 `;
             });
@@ -1366,6 +1684,284 @@
             slideText.textContent = 'Slide to Save All →';
             slideButton.style.left = '5px';
             slideBackground.style.width = '0%';
+        }
+
+        // Toggle edit mode for BookTitle and Language
+        function toggleEditMode(isbn) {
+            const row = document.getElementById('row-' + isbn);
+            if (!row) return;
+
+            const titleCell = row.querySelector('.editable-title');
+            const languageCell = row.querySelector('.editable-language');
+            const editBtn = row.querySelector('.edit-btn');
+
+            const isEditing = titleCell.classList.contains('editing');
+
+            if (isEditing) {
+                // Save mode - save the changes
+                saveISBNEdit(isbn, titleCell, languageCell, editBtn);
+            } else {
+                // Edit mode - make fields editable
+                enableEditMode(titleCell, languageCell, editBtn);
+            }
+        }
+
+        // Enable edit mode on cells
+        function enableEditMode(titleCell, languageCell, editBtn) {
+            // Store original values
+            const originalTitle = titleCell.textContent.trim();
+            const originalLanguage = languageCell.textContent.trim();
+
+            titleCell.dataset.original = originalTitle;
+            languageCell.dataset.original = originalLanguage;
+
+            // Make cells contenteditable
+            titleCell.contentEditable = true;
+            languageCell.contentEditable = true;
+
+            // Add editing class for styling
+            titleCell.classList.add('editing');
+            languageCell.classList.add('editing');
+
+            // Change icon to save
+            editBtn.textContent = '💾';
+            editBtn.style.color = '#2196F3';
+
+            // Focus on title field
+            titleCell.focus();
+
+            console.log('📝 Edit mode enabled for row');
+        }
+
+        // Save edited ISBN data back to ISBN_List
+        async function saveISBNEdit(isbn, titleCell, languageCell, editBtn) {
+            const newTitle = titleCell.textContent.trim();
+            const newLanguage = languageCell.textContent.trim();
+            const originalTitle = titleCell.dataset.original;
+            const originalLanguage = languageCell.dataset.original;
+
+            // Check if anything changed
+            if (newTitle === originalTitle && newLanguage === originalLanguage) {
+                // No changes, just exit edit mode
+                disableEditMode(titleCell, languageCell, editBtn);
+                return;
+            }
+
+            // Validate title is not empty
+            if (!newTitle || newTitle === '') {
+                showAlert('⚠️ Book Title cannot be empty!', 'error');
+                titleCell.textContent = originalTitle;
+                return;
+            }
+
+            // Disable edit mode first
+            disableEditMode(titleCell, languageCell, editBtn);
+
+            // Show saving indicator
+            editBtn.textContent = '⏳';
+            editBtn.style.color = '#FFA500';
+
+            const dataToSend = {
+                action: 'updateISBN',
+                isbn: isbn,
+                bookTitle: newTitle,
+                language: newLanguage
+            };
+
+            console.log('Updating ISBN entry:', dataToSend);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataToSend),
+                    redirect: 'follow'
+                });
+
+                const result = await response.json();
+                console.log('Update result:', result);
+
+                if (result.success) {
+                    showAlert('✅ Book details updated successfully!', 'success');
+
+                    // Update the row's data attributes
+                    const row = titleCell.closest('tr');
+                    row.dataset.title = newTitle;
+                    row.dataset.language = newLanguage;
+
+                    // Reset icon to edit
+                    editBtn.textContent = '✏️';
+                    editBtn.style.color = '#2e8b57';
+                } else {
+                    showAlert('Failed: ' + result.message, 'error');
+
+                    // Revert to original values
+                    titleCell.textContent = originalTitle;
+                    languageCell.textContent = originalLanguage;
+
+                    // Reset icon to edit
+                    editBtn.textContent = '✏️';
+                    editBtn.style.color = '#2e8b57';
+                }
+            } catch (error) {
+                console.error('Error updating ISBN entry:', error);
+                showAlert('Error updating book details', 'error');
+
+                // Revert to original values
+                titleCell.textContent = originalTitle;
+                languageCell.textContent = originalLanguage;
+
+                // Reset icon to edit
+                editBtn.textContent = '✏️';
+                editBtn.style.color = '#2e8b57';
+            }
+        }
+
+        // Disable edit mode on cells
+        function disableEditMode(titleCell, languageCell, editBtn) {
+            // Remove contenteditable
+            titleCell.contentEditable = false;
+            languageCell.contentEditable = false;
+
+            // Remove editing class
+            titleCell.classList.remove('editing');
+            languageCell.classList.remove('editing');
+
+            // Change icon back to edit
+            editBtn.textContent = '✏️';
+            editBtn.style.color = '#2e8b57';
+
+            console.log('📝 Edit mode disabled');
+        }
+
+        // Add book to table optimistically (before save confirmation)
+        function addBookToTableOptimistic(book) {
+            const tableContainer = document.getElementById('isbnTableContainer');
+            const table = tableContainer.querySelector('.isbn-table tbody');
+
+            if (!table) {
+                // Table doesn't exist yet, create it
+                const slideSection = document.getElementById('slideToSaveSection');
+                if (slideSection) {
+                    slideSection.style.display = 'block';
+                }
+                loadISBNList(); // This will create the table structure
+                return;
+            }
+
+            // Check if book already exists
+            const existingRow = document.getElementById('row-' + book.isbn);
+            if (existingRow) {
+                console.log('Book already in table, highlighting it');
+                existingRow.style.animation = 'flashIn 0.5s ease-in-out';
+                setTimeout(() => {
+                    existingRow.style.animation = '';
+                }, 500);
+                return;
+            }
+
+            // Use mapped genre from book object
+            const mappedGenre = book.genre || 'Unknown';
+
+            // Split categories for display
+            const categories = book.categories ? book.categories.split(',').map(c => c.trim()) : [];
+            const category = categories.slice(1).join(', ') || categories[0] || 'N/A';
+
+            // Create new row with loading indicator
+            const newRow = document.createElement('tr');
+            newRow.id = 'row-' + book.isbn;
+            newRow.dataset.isbn = book.isbn;
+            newRow.dataset.title = book.title;
+            newRow.dataset.author = book.authors;
+            newRow.dataset.genre = mappedGenre;
+            newRow.dataset.category = category;
+            newRow.dataset.language = book.language;
+            newRow.classList.add('optimistic-row');
+            newRow.style.opacity = '0.6'; // Show it's pending
+
+            newRow.innerHTML = `
+                <td>${book.isbn || 'N/A'}</td>
+                <td class="editable-title"><strong>${book.title || 'Unknown Title'}</strong></td>
+                <td>${book.authors || 'N/A'}</td>
+                <td><strong>${mappedGenre}</strong></td>
+                <td>${category}</td>
+                <td class="editable-language">${book.language || 'N/A'}</td>
+                <td style="text-align: center;">
+                    <span style="color: #FFA500; font-size: 16px;">⏳</span>
+                </td>
+            `;
+
+            // Add to top of table with animation
+            table.insertBefore(newRow, table.firstChild);
+            newRow.style.animation = 'flashIn 0.3s ease-in-out';
+
+            // Update book count
+            const bookCount = table.querySelectorAll('tr').length;
+            const bookCountEl = document.getElementById('bookCount');
+            if (bookCountEl) {
+                bookCountEl.textContent = bookCount;
+            }
+
+            // Show slide section if hidden
+            const slideSection = document.getElementById('slideToSaveSection');
+            if (slideSection) {
+                slideSection.style.display = 'block';
+            }
+
+            console.log('✨ Added book to table optimistically');
+        }
+
+        // Confirm optimistic book after successful save
+        function confirmOptimisticBook(isbn) {
+            const row = document.getElementById('row-' + isbn);
+            if (!row) return;
+
+            row.classList.remove('optimistic-row');
+            row.style.opacity = '1';
+
+            // Replace loading indicator with edit button
+            const editCell = row.querySelector('td:last-child');
+            editCell.innerHTML = `
+                <button class="edit-btn" onclick="toggleEditMode('${isbn}')"
+                    style="background: none; border: none; cursor: pointer; font-size: 18px; color: #2e8b57; padding: 5px;">
+                    ✏️
+                </button>
+            `;
+
+            row.style.animation = 'successPulse 0.5s ease-in-out';
+            setTimeout(() => {
+                row.style.animation = '';
+            }, 500);
+
+            console.log('✅ Confirmed optimistic book:', isbn);
+        }
+
+        // Remove optimistic book if save failed
+        function removeOptimisticBook(isbn) {
+            const row = document.getElementById('row-' + isbn);
+            if (!row) return;
+
+            row.style.animation = 'fadeOut 0.3s ease-in-out';
+            setTimeout(() => {
+                row.remove();
+
+                // Update book count
+                const table = document.querySelector('.isbn-table tbody');
+                if (table) {
+                    const bookCount = table.querySelectorAll('tr').length;
+                    const bookCountEl = document.getElementById('bookCount');
+                    if (bookCountEl) {
+                        bookCountEl.textContent = bookCount;
+                    }
+
+                    // Hide slide section if no books
+                    if (bookCount === 0) {
+                        document.getElementById('slideToSaveSection').style.display = 'none';
+                    }
+                }
+            }, 300);
+
+            console.log('❌ Removed optimistic book:', isbn);
         }
 
         // Initialize on page load
