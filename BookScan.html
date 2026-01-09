@@ -630,8 +630,8 @@
 
         .info-tooltip {
             visibility: hidden;
-            position: absolute;
-            z-index: 10000;
+            position: fixed;
+            z-index: 99999;
             background-color: #2c3e50;
             color: #ffffff;
             padding: 16px 20px;
@@ -640,9 +640,6 @@
             line-height: 1.8;
             width: 400px;
             max-width: 85vw;
-            bottom: calc(100% + 12px);
-            left: 50%;
-            transform: translateX(-50%);
             opacity: 0;
             transition: opacity 0.3s ease, visibility 0.3s ease;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
@@ -656,7 +653,7 @@
         .info-tooltip::after {
             content: "";
             position: absolute;
-            top: 100%;
+            bottom: -16px;
             left: 50%;
             margin-left: -8px;
             border-width: 8px;
@@ -664,13 +661,29 @@
             border-color: #2c3e50 transparent transparent transparent;
         }
 
+        /* When tooltip is below icon, flip the arrow to point up */
+        .info-tooltip.tooltip-below::after {
+            bottom: auto;
+            top: -16px;
+            border-color: transparent transparent #2c3e50 transparent;
+        }
+
+        .info-icon {
+            position: relative;
+        }
+
         .info-icon:hover .info-tooltip {
             visibility: visible;
             opacity: 1;
         }
 
-        /* Ensure table cells don't clip tooltip */
+        /* Ensure table and container don't clip tooltip */
         .isbn-table td {
+            overflow: visible;
+            position: relative;
+        }
+
+        .isbn-table {
             overflow: visible;
         }
 
@@ -1750,7 +1763,7 @@
                         <td class="editable-title">
                             <strong>${book.bookTitle || 'Unknown Title'}</strong>
                             <span class="info-icon">i
-                                <span class="info-tooltip">Sometimes the BookTitle scanned data may not give specifics of the bookTitle fully, like Starts with series Name and Version of Plot or story title may be missing including volume number etc. Recommendation is to Edit and update if necessary to avoid duplicate BookTitleNames and bring clarity.</span>
+                                <span class="info-tooltip">Scanned titles might miss series or volume info. Please review and edit to ensure accuracy and prevent duplicates.</span>
                             </span>
                         </td>
                         <td>${book.authors || 'N/A'}</td>
@@ -2508,7 +2521,7 @@
                 <td class="editable-title">
                     <strong>${book.title || 'Unknown Title'}</strong>
                     <span class="info-icon">i
-                        <span class="info-tooltip">Sometimes the BookTitle scanned data may not give specifics of the bookTitle fully, like Starts with series Name and Version of Plot or story title may be missing including volume number etc. Recommendation is to Edit and update if necessary to avoid duplicate BookTitleNames and bring clarity.</span>
+                        <span class="info-tooltip">Scanned titles might miss series or volume info. Please review and edit to ensure accuracy and prevent duplicates.</span>
                     </span>
                 </td>
                 <td>${book.authors || 'N/A'}</td>
@@ -2666,6 +2679,49 @@
                 }
             }, 300); // Wait for fade-out animation
         }
+
+        // Dynamic tooltip positioning to ensure it's always visible
+        document.addEventListener('mouseover', (e) => {
+            if (e.target.classList.contains('info-icon')) {
+                const tooltip = e.target.querySelector('.info-tooltip');
+                if (!tooltip) return;
+
+                const icon = e.target;
+                const iconRect = icon.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+
+                // Calculate position above the icon
+                const topPosition = iconRect.top - tooltipRect.height - 12;
+                const leftPosition = iconRect.left + (iconRect.width / 2) - (tooltipRect.width / 2);
+
+                // Ensure tooltip doesn't go off screen
+                let finalLeft = leftPosition;
+                let finalTop = topPosition;
+
+                // Check right boundary
+                if (leftPosition + tooltipRect.width > window.innerWidth) {
+                    finalLeft = window.innerWidth - tooltipRect.width - 10;
+                }
+
+                // Check left boundary
+                if (leftPosition < 10) {
+                    finalLeft = 10;
+                }
+
+                // Check top boundary - if tooltip would go above viewport, show below icon instead
+                if (topPosition < 10) {
+                    finalTop = iconRect.bottom + 12;
+                    // Update arrow to point upward when tooltip is below
+                    tooltip.classList.add('tooltip-below');
+                } else {
+                    tooltip.classList.remove('tooltip-below');
+                }
+
+                // Apply positions
+                tooltip.style.top = finalTop + 'px';
+                tooltip.style.left = finalLeft + 'px';
+            }
+        });
 
         // Initialize on page load
         window.addEventListener('load', () => {
