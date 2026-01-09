@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BooksXChange Product Feature Release</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            line-height: 1.4;
+            padding: 15px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #0f0f23;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a3a0 100%);
+            padding: 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .header img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .title-section {
+            background: linear-gradient(135deg, #2d3561 0%, #1f2544 100%);
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom: 3px solid #4ecdc4;
+        }
+
+        .title-section h1 {
+            font-size: 2.2em;
+            color: #4ecdc4;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .title-section .rocket-emoji {
+            font-size: 2em;
+            margin-right: 10px;
+        }
+
+        .title-section .subtitle {
+            font-size: 1.1em;
+            color: #b0b0b0;
+            font-weight: 400;
+            margin-bottom: 12px;
+        }
+
+        .release-date {
+            display: inline-block;
+            background: #4ecdc4;
+            color: #0f0f23;
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .content {
+            padding: 20px 30px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            color: #4ecdc4;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #2d3561;
+            font-weight: 600;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #1f2544 0%, #1a1d3a 100%);
+            border-left: 4px solid #4ecdc4;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 8px 20px rgba(78, 205, 196, 0.2);
+        }
+
+        .feature-card .checkmark {
+            color: #4ecdc4;
+            font-size: 1.1em;
+            margin-right: 8px;
+        }
+
+        .feature-card .feature-title {
+            font-size: 1em;
+            color: #fff;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .feature-card .feature-description {
+            color: #b0b0b0;
+            font-size: 0.88em;
+            line-height: 1.5;
+            padding-left: 25px;
+        }
+
+        .footer {
+            background: #1a1d3a;
+            padding: 15px;
+            text-align: center;
+            color: #888;
+            font-size: 0.8em;
+            border-top: 2px solid #2d3561;
+        }
+
+        .footer p {
+            margin-bottom: 5px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a3a0 100%);
+            color: #0f0f23;
+            padding: 15px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.1em;
+            margin-top: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(78, 205, 196, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 30px 25px;
+            }
+
+            .title-section h1 {
+                font-size: 2em;
+            }
+
+            .section-title {
+                font-size: 1.6em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Title Section -->
+        <div class="title-section">
+            <h1><span class="rocket-emoji">🚀</span>BooksXChange</h1>
+            <div class="subtitle">Product Feature Release</div>
+            <div class="release-date">Release Date: 9-Jan-2026</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- What's New Section -->
+            <div class="section">
+                <h2 class="section-title">What's New in BookManager?</h2>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>New BarCode Book Scanner
+                    </div>
+                    <div class="feature-description">
+                        Bulk adding books is now effortless. Simply scan the ISBN using your web or mobile camera to load details seamlessly.
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>Smart Data Mapping
+                    </div>
+                    <div class="feature-description">
+                        Automatically maps books to meaningful genres, categories, and locale languages during the scan.
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>Bulk Inventory Saving
+                    </div>
+                    <div class="feature-description">
+                        Review your scanned batch and save multiple books to the main inventory in one click.
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>Expanded Library
+                    </div>
+                    <div class="feature-description">
+                        New genres added including Self-Help, Technical, Arts & Crafts, Music, and Photography.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experience Enhancements Section -->
+            <div class="section">
+                <h2 class="section-title">Experience Enhancements</h2>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>Reverse Order View
+                    </div>
+                    <div class="feature-description">
+                        Your inventory now displays the latest additions first by default.
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>Auto-Refresh
+                    </div>
+                    <div class="feature-description">
+                        The inventory view now features a timed automatic refresh to ensure you are always seeing the most recent data.
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>Optimized UI
+                    </div>
+                    <div class="feature-description">
+                        We've fixed UI glitches for faster loading and scanning speeds.
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>Interactive Tooltips
+                    </div>
+                    <div class="feature-description">
+                        Helpful guidance icons added throughout the interface for ease of use.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Getting Started Section -->
+            <div class="section">
+                <h2 class="section-title">Getting Started</h2>
+
+                <div class="feature-card">
+                    <div class="feature-title">
+                        <span class="checkmark">✅</span>How-to-Use Guide
+                    </div>
+                    <div class="feature-description">
+                        We've added a dedicated BookScanner Steps & Demo section to help you master the new tools instantly.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>BooksXChange</strong> - Revolutionizing Book Management</p>
+            <p>Thank you for being part of our journey!</p>
+        </div>
+    </div>
+</body>
+</html>
