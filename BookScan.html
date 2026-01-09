@@ -1708,7 +1708,7 @@
                     <thead>
                         <tr>
                             <th>ISBN</th>
-                            <th>Book Title</th>
+                            <th>Book Title<span class="info-icon" id="header-info-icon">i</span></th>
                             <th>Author</th>
                             <th>Genre</th>
                             <th>Category</th>
@@ -1758,7 +1758,6 @@
                         <td>${book.isbn || 'N/A'}</td>
                         <td class="editable-title">
                             <strong>${book.bookTitle || 'Unknown Title'}</strong>
-                            <span class="info-icon" data-isbn="${book.isbn}">i</span>
                         </td>
                         <td>${book.authors || 'N/A'}</td>
                         <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
@@ -2514,7 +2513,6 @@
                 <td>${book.isbn || 'N/A'}</td>
                 <td class="editable-title">
                     <strong>${book.title || 'Unknown Title'}</strong>
-                    <span class="info-icon" data-isbn="${book.isbn}">i</span>
                 </td>
                 <td>${book.authors || 'N/A'}</td>
                 <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
