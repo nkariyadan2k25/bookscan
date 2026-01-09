@@ -629,7 +629,7 @@
         }
 
         .info-tooltip {
-            visibility: hidden;
+            display: none;
             position: fixed;
             z-index: 99999;
             background-color: #2c3e50;
@@ -640,8 +640,6 @@
             line-height: 1.8;
             width: 400px;
             max-width: 85vw;
-            opacity: 0;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             font-weight: normal;
             white-space: normal;
@@ -670,11 +668,6 @@
 
         .info-icon {
             position: relative;
-        }
-
-        .info-icon:hover .info-tooltip {
-            visibility: visible;
-            opacity: 1;
         }
 
         /* Ensure table and container don't clip tooltip */
@@ -2682,25 +2675,32 @@
 
         // Dynamic tooltip positioning to ensure it's always visible
         document.addEventListener('mouseover', (e) => {
-            if (e.target.classList.contains('info-icon')) {
-                const tooltip = e.target.querySelector('.info-tooltip');
+            // Check if we're hovering over the info icon
+            const infoIcon = e.target.closest('.info-icon');
+            if (infoIcon) {
+                const tooltip = infoIcon.querySelector('.info-tooltip');
                 if (!tooltip) return;
 
-                const icon = e.target;
-                const iconRect = icon.getBoundingClientRect();
-                const tooltipRect = tooltip.getBoundingClientRect();
+                // Show tooltip
+                tooltip.style.display = 'block';
+
+                const iconRect = infoIcon.getBoundingClientRect();
+
+                // Get tooltip dimensions after making it visible
+                const tooltipWidth = tooltip.offsetWidth;
+                const tooltipHeight = tooltip.offsetHeight;
 
                 // Calculate position above the icon
-                const topPosition = iconRect.top - tooltipRect.height - 12;
-                const leftPosition = iconRect.left + (iconRect.width / 2) - (tooltipRect.width / 2);
+                let topPosition = iconRect.top - tooltipHeight - 12;
+                let leftPosition = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
 
                 // Ensure tooltip doesn't go off screen
                 let finalLeft = leftPosition;
                 let finalTop = topPosition;
 
                 // Check right boundary
-                if (leftPosition + tooltipRect.width > window.innerWidth) {
-                    finalLeft = window.innerWidth - tooltipRect.width - 10;
+                if (leftPosition + tooltipWidth > window.innerWidth) {
+                    finalLeft = window.innerWidth - tooltipWidth - 10;
                 }
 
                 // Check left boundary
@@ -2720,6 +2720,21 @@
                 // Apply positions
                 tooltip.style.top = finalTop + 'px';
                 tooltip.style.left = finalLeft + 'px';
+            }
+        });
+
+        // Hide tooltip on mouseout
+        document.addEventListener('mouseout', (e) => {
+            const infoIcon = e.target.closest('.info-icon');
+            if (infoIcon) {
+                // Check if we're actually leaving the info-icon area
+                const relatedTarget = e.relatedTarget;
+                if (!relatedTarget || !infoIcon.contains(relatedTarget)) {
+                    const tooltip = infoIcon.querySelector('.info-tooltip');
+                    if (tooltip) {
+                        tooltip.style.display = 'none';
+                    }
+                }
             }
         });
 
