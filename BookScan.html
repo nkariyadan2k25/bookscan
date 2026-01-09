@@ -619,9 +619,9 @@
             line-height: 18px;
             margin-left: 8px;
             cursor: help;
-            position: relative;
             vertical-align: middle;
             transition: background-color 0.2s;
+            position: relative;
         }
 
         .info-icon:hover {
@@ -634,40 +634,43 @@
             z-index: 99999;
             background-color: #2c3e50;
             color: #ffffff;
-            padding: 16px 20px;
+            padding: 16px 40px 16px 20px;
             border-radius: 10px;
             font-size: 13px;
             line-height: 1.8;
-            width: 400px;
-            max-width: 85vw;
+            width: 350px;
+            max-width: 90vw;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             font-weight: normal;
             white-space: normal;
             word-wrap: break-word;
             text-align: left;
-            pointer-events: none;
         }
 
-        .info-tooltip::after {
-            content: "";
+        .info-tooltip.show {
+            display: block;
+        }
+
+        .tooltip-close {
             position: absolute;
-            bottom: -16px;
-            left: 50%;
-            margin-left: -8px;
-            border-width: 8px;
-            border-style: solid;
-            border-color: #2c3e50 transparent transparent transparent;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 20px;
+            text-align: center;
+            transition: background-color 0.2s;
+            padding: 0;
         }
 
-        /* When tooltip is below icon, flip the arrow to point up */
-        .info-tooltip.tooltip-below::after {
-            bottom: auto;
-            top: -16px;
-            border-color: transparent transparent #2c3e50 transparent;
-        }
-
-        .info-icon {
-            position: relative;
+        .tooltip-close:hover {
+            background-color: rgba(255, 255, 255, 0.3);
         }
 
         /* Ensure table and container don't clip tooltip */
@@ -1755,9 +1758,7 @@
                         <td>${book.isbn || 'N/A'}</td>
                         <td class="editable-title">
                             <strong>${book.bookTitle || 'Unknown Title'}</strong>
-                            <span class="info-icon">i
-                                <span class="info-tooltip">Scanned titles might miss series or volume info. Please review and edit to ensure accuracy and prevent duplicates.</span>
-                            </span>
+                            <span class="info-icon" data-isbn="${book.isbn}">i</span>
                         </td>
                         <td>${book.authors || 'N/A'}</td>
                         <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
@@ -2513,9 +2514,7 @@
                 <td>${book.isbn || 'N/A'}</td>
                 <td class="editable-title">
                     <strong>${book.title || 'Unknown Title'}</strong>
-                    <span class="info-icon">i
-                        <span class="info-tooltip">Scanned titles might miss series or volume info. Please review and edit to ensure accuracy and prevent duplicates.</span>
-                    </span>
+                    <span class="info-icon" data-isbn="${book.isbn}">i</span>
                 </td>
                 <td>${book.authors || 'N/A'}</td>
                 <td class="${genreClass}"><strong>${mappedGenre}</strong>${genreIndicator}</td>
@@ -2673,70 +2672,113 @@
             }, 300); // Wait for fade-out animation
         }
 
-        // Dynamic tooltip positioning to ensure it's always visible
-        document.addEventListener('mouseover', (e) => {
-            // Check if we're hovering over the info icon
+        // Info icon tooltip functionality
+        let activeTooltip = null;
+        let tooltipTimeout = null;
+        const tooltipMessage = "Scanned titles might miss series or volume info. Please review and edit to ensure accuracy and prevent duplicates.";
+
+        // Create and position tooltip
+        function showTooltip(iconElement, isClick = false) {
+            // Remove any existing tooltip
+            hideTooltip();
+
+            // Create tooltip element
+            const tooltip = document.createElement('div');
+            tooltip.className = 'info-tooltip show';
+            tooltip.innerHTML = `
+                ${tooltipMessage}
+                <button class="tooltip-close" onclick="hideTooltip()">&times;</button>
+            `;
+            document.body.appendChild(tooltip);
+            activeTooltip = tooltip;
+
+            // Position tooltip
+            const iconRect = iconElement.getBoundingClientRect();
+            const tooltipWidth = tooltip.offsetWidth;
+            const tooltipHeight = tooltip.offsetHeight;
+
+            // Try to position above the icon
+            let top = iconRect.top - tooltipHeight - 10;
+            let left = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
+
+            // If tooltip goes above viewport, show it below
+            if (top < 10) {
+                top = iconRect.bottom + 10;
+            }
+
+            // Keep tooltip within viewport horizontally
+            if (left < 10) {
+                left = 10;
+            } else if (left + tooltipWidth > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipWidth - 10;
+            }
+
+            tooltip.style.top = top + 'px';
+            tooltip.style.left = left + 'px';
+
+            // If this was a click (mobile), auto-hide after 5 seconds
+            if (isClick) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = setTimeout(() => {
+                    hideTooltip();
+                }, 5000);
+            }
+        }
+
+        // Hide tooltip
+        function hideTooltip() {
+            if (activeTooltip) {
+                activeTooltip.remove();
+                activeTooltip = null;
+            }
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+        }
+
+        // Make hideTooltip globally accessible for the close button
+        window.hideTooltip = hideTooltip;
+
+        // Detect if device is touch-enabled
+        function isTouchDevice() {
+            return (('ontouchstart' in window) ||
+                    (navigator.maxTouchPoints > 0) ||
+                    (navigator.msMaxTouchPoints > 0));
+        }
+
+        // Event delegation for info icons
+        document.addEventListener('click', (e) => {
             const infoIcon = e.target.closest('.info-icon');
             if (infoIcon) {
-                const tooltip = infoIcon.querySelector('.info-tooltip');
-                if (!tooltip) return;
-
-                // Show tooltip
-                tooltip.style.display = 'block';
-
-                const iconRect = infoIcon.getBoundingClientRect();
-
-                // Get tooltip dimensions after making it visible
-                const tooltipWidth = tooltip.offsetWidth;
-                const tooltipHeight = tooltip.offsetHeight;
-
-                // Calculate position above the icon
-                let topPosition = iconRect.top - tooltipHeight - 12;
-                let leftPosition = iconRect.left + (iconRect.width / 2) - (tooltipWidth / 2);
-
-                // Ensure tooltip doesn't go off screen
-                let finalLeft = leftPosition;
-                let finalTop = topPosition;
-
-                // Check right boundary
-                if (leftPosition + tooltipWidth > window.innerWidth) {
-                    finalLeft = window.innerWidth - tooltipWidth - 10;
-                }
-
-                // Check left boundary
-                if (leftPosition < 10) {
-                    finalLeft = 10;
-                }
-
-                // Check top boundary - if tooltip would go above viewport, show below icon instead
-                if (topPosition < 10) {
-                    finalTop = iconRect.bottom + 12;
-                    // Update arrow to point upward when tooltip is below
-                    tooltip.classList.add('tooltip-below');
-                } else {
-                    tooltip.classList.remove('tooltip-below');
-                }
-
-                // Apply positions
-                tooltip.style.top = finalTop + 'px';
-                tooltip.style.left = finalLeft + 'px';
+                e.stopPropagation();
+                showTooltip(infoIcon, true);
+            } else if (!e.target.closest('.info-tooltip')) {
+                // Clicked outside tooltip, hide it
+                hideTooltip();
             }
         });
 
-        // Hide tooltip on mouseout
-        document.addEventListener('mouseout', (e) => {
-            const infoIcon = e.target.closest('.info-icon');
-            if (infoIcon) {
-                // Check if we're actually leaving the info-icon area
-                const relatedTarget = e.relatedTarget;
-                if (!relatedTarget || !infoIcon.contains(relatedTarget)) {
-                    const tooltip = infoIcon.querySelector('.info-tooltip');
-                    if (tooltip) {
-                        tooltip.style.display = 'none';
+        // For desktop: show on hover (only if not touch device)
+        if (!isTouchDevice()) {
+            document.addEventListener('mouseover', (e) => {
+                const infoIcon = e.target.closest('.info-icon');
+                if (infoIcon) {
+                    showTooltip(infoIcon, false);
+                }
+            });
+
+            document.addEventListener('mouseout', (e) => {
+                const infoIcon = e.target.closest('.info-icon');
+                if (infoIcon) {
+                    // Check if we're leaving the icon and not entering the tooltip
+                    const relatedTarget = e.relatedTarget;
+                    if (!relatedTarget || (!infoIcon.contains(relatedTarget) && !relatedTarget.closest('.info-tooltip'))) {
+                        hideTooltip();
                     }
                 }
-            }
-        });
+            });
+        }
 
         // Initialize on page load
         window.addEventListener('load', () => {
