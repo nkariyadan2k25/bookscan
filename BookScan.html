@@ -608,24 +608,29 @@
         /* Info icon and tooltip styles */
         .info-icon {
             display: inline-block;
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             background-color: #2196F3;
             color: white;
             border-radius: 50%;
             text-align: center;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
-            line-height: 18px;
-            margin-left: 8px;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-style: italic;
+            line-height: 20px;
+            margin-left: 6px;
             cursor: help;
             vertical-align: middle;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
             position: relative;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .info-icon:hover {
             background-color: #1976D2;
+            transform: scale(1.1);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
         }
 
         .info-tooltip {
