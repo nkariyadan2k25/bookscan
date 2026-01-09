@@ -712,43 +712,178 @@
         }
 
         /* Alternative positioning for tooltips that would go off screen */
-        @media (max-width: 768px) {
-            .info-tooltip {
-                width: 300px;
-                font-size: 12px;
-                padding: 12px 16px;
-                left: auto;
-                right: -10px;
-                transform: none;
+        /* Tablet Landscape (1024px - 1366px) */
+        @media (min-width: 1024px) and (max-width: 1366px) {
+            .container {
+                max-width: 95%;
+                padding: 25px;
             }
 
-            .info-tooltip::after {
-                left: 30px;
-                margin-left: 0;
+            h1 {
+                font-size: 28px;
+            }
+
+            .subtitle {
+                font-size: 15px;
+            }
+
+            .isbn-table th,
+            .isbn-table td {
+                padding: 12px;
+                font-size: 13px;
             }
         }
 
-        @media (max-width: 600px) {
+        /* Tablet Portrait & Small Tablets (768px - 1023px) */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            body {
+                padding: 15px;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            .subtitle {
+                font-size: 14px;
+            }
+
+            .info-box {
+                padding: 15px;
+                font-size: 14px;
+            }
+
+            .warning-box {
+                padding: 20px;
+            }
+
+            .warning-box h2 {
+                font-size: 20px;
+            }
+
+            .warning-box p {
+                font-size: 14px;
+            }
+
+            #registryForm {
+                padding: 18px;
+            }
+
+            #registryForm h4 {
+                font-size: 16px;
+            }
+
+            #registryForm > div {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            #registryForm > div > div:last-child {
+                grid-column: 1 / -1;
+            }
+
+            .isbn-table {
+                font-size: 13px;
+            }
+
+            .isbn-table th,
+            .isbn-table td {
+                padding: 12px 10px;
+            }
+
+            #mainSlideButton {
+                width: 300px;
+                height: 55px;
+            }
+
+            #mainSlideButton .slide-button {
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+            }
+
+            #mainSlideButton .slide-text {
+                font-size: 13px;
+            }
+
+            .btn {
+                padding: 14px 35px;
+                font-size: 15px;
+            }
+
+            .info-tooltip {
+                width: 300px;
+                font-size: 12px;
+                padding: 14px 18px;
+            }
+        }
+
+        /* Mobile Landscape (600px - 767px) */
+        @media (min-width: 600px) and (max-width: 767px) {
+            body {
+                padding: 12px;
+            }
+
             .container {
                 padding: 20px;
             }
 
             h1 {
-                font-size: 24px;
+                font-size: 22px;
             }
 
-            .btn {
-                padding: 12px 30px;
+            .subtitle {
                 font-size: 14px;
+                margin-bottom: 20px;
+            }
+
+            .info-box,
+            .warning-box {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+
+            #registryForm {
+                padding: 15px;
+            }
+
+            #registryForm h4 {
+                font-size: 15px;
+                margin-bottom: 12px;
+            }
+
+            #registryForm > div {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            #isbnTableContainer {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
             .isbn-table {
+                min-width: 700px;
                 font-size: 12px;
             }
 
             .isbn-table th,
             .isbn-table td {
                 padding: 10px 8px;
+                white-space: nowrap;
+            }
+
+            .isbn-table th:first-child,
+            .isbn-table td:first-child {
+                position: sticky;
+                left: 0;
+                background: inherit;
+                z-index: 1;
             }
 
             #mainSlideButton {
@@ -766,7 +901,314 @@
                 font-size: 12px;
             }
 
-            /* Mobile tooltip adjustments already handled above */
+            .btn {
+                padding: 12px 30px;
+                font-size: 14px;
+            }
+
+            .btn-warning {
+                padding: 16px 35px;
+                font-size: 16px;
+            }
+        }
+
+        /* Mobile Portrait (up to 599px) */
+        @media (max-width: 599px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 15px;
+                border-radius: 15px;
+            }
+
+            h1 {
+                font-size: 20px;
+                margin-bottom: 8px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+                margin-bottom: 15px;
+            }
+
+            .info-box {
+                padding: 12px;
+                font-size: 13px;
+                margin-bottom: 15px;
+            }
+
+            .warning-box {
+                padding: 18px;
+                margin-bottom: 18px;
+            }
+
+            .warning-box h2 {
+                font-size: 18px;
+            }
+
+            .warning-box p {
+                font-size: 13px;
+                margin: 12px 0;
+            }
+
+            .btn {
+                padding: 12px 25px;
+                font-size: 14px;
+                width: 100%;
+            }
+
+            .btn-warning {
+                padding: 15px 30px;
+                font-size: 16px;
+                width: auto;
+            }
+
+            .controls {
+                margin-bottom: 20px;
+            }
+
+            #cameraViewContainer {
+                margin-bottom: 15px;
+            }
+
+            #reader {
+                border-radius: 8px;
+            }
+
+            #scannedBookDetails {
+                padding: 18px;
+                margin-bottom: 15px;
+            }
+
+            #scannedBookDetails h3 {
+                font-size: 18px;
+                margin-bottom: 15px;
+            }
+
+            .detail-item {
+                margin-bottom: 12px;
+            }
+
+            .detail-item strong {
+                font-size: 13px;
+            }
+
+            .detail-item p {
+                font-size: 14px;
+            }
+
+            #isbnListSection h3 {
+                font-size: 18px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .refresh-grid-btn {
+                padding: 8px 14px;
+                font-size: 11px;
+                width: 100%;
+            }
+
+            #registryForm {
+                padding: 15px;
+            }
+
+            #registryForm h4 {
+                font-size: 15px;
+                margin-bottom: 12px;
+            }
+
+            #registryForm > div {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            #registryForm label {
+                font-size: 13px;
+            }
+
+            #registryForm input {
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            #isbnTableContainer {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -15px;
+                padding: 0 15px;
+            }
+
+            .isbn-table {
+                min-width: 700px;
+                font-size: 11px;
+            }
+
+            .isbn-table th,
+            .isbn-table td {
+                padding: 8px 6px;
+                white-space: nowrap;
+            }
+
+            .isbn-table th {
+                font-size: 11px;
+            }
+
+            .isbn-table th:first-child,
+            .isbn-table td:first-child {
+                position: sticky;
+                left: 0;
+                background: inherit;
+                z-index: 1;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            }
+
+            .multi-select-checkboxes {
+                max-height: 150px;
+                gap: 6px;
+            }
+
+            .multi-select-checkbox {
+                padding: 5px 8px;
+                font-size: 12px;
+            }
+
+            .multi-select-checkbox input[type="checkbox"] {
+                width: 12px;
+                height: 12px;
+            }
+
+            .selected-tag {
+                padding: 3px 8px;
+                font-size: 11px;
+            }
+
+            #slideToSaveSection {
+                margin-top: 20px;
+            }
+
+            #slideToSaveSection p {
+                font-size: 13px;
+                margin-bottom: 12px;
+            }
+
+            #mainSlideButton {
+                width: 100%;
+                max-width: 280px;
+                height: 50px;
+            }
+
+            #mainSlideButton .slide-button {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            #mainSlideButton .slide-text {
+                font-size: 12px;
+            }
+
+            .alert {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+                font-size: 13px;
+                padding: 12px 18px;
+            }
+
+            .info-tooltip {
+                width: calc(100vw - 40px);
+                max-width: 300px;
+                font-size: 12px;
+                padding: 12px 32px 12px 16px;
+            }
+
+            .empty-grid-message {
+                padding: 30px 15px;
+                font-size: 14px;
+            }
+        }
+
+        /* Small Mobile (up to 360px) */
+        @media (max-width: 360px) {
+            .container {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 18px;
+            }
+
+            .subtitle {
+                font-size: 12px;
+            }
+
+            .btn {
+                padding: 10px 20px;
+                font-size: 13px;
+            }
+
+            .isbn-table {
+                min-width: 650px;
+                font-size: 10px;
+            }
+
+            .isbn-table th,
+            .isbn-table td {
+                padding: 6px 4px;
+            }
+
+            #mainSlideButton {
+                max-width: 260px;
+                height: 45px;
+            }
+
+            #mainSlideButton .slide-button {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+
+            #mainSlideButton .slide-text {
+                font-size: 11px;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+
+            .controls,
+            .btn,
+            .warning-box,
+            #cameraViewContainer,
+            #slideToSaveSection,
+            .edit-btn,
+            .delete-btn,
+            .refresh-grid-btn {
+                display: none !important;
+            }
+
+            .isbn-table {
+                page-break-inside: avoid;
+            }
+
+            .isbn-table th,
+            .isbn-table td {
+                border: 1px solid #000;
+            }
         }
     </style>
 </head>
